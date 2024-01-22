@@ -2,7 +2,7 @@
 // Filename: systemclass.cpp
 ////////////////////////////////////////////////////////////////////////////////
 #include "systemclass.h"
-
+#include "imgui/backends/imgui_impl_win32.h"
 
 SystemClass::SystemClass()
 {
@@ -81,6 +81,8 @@ bool SystemClass::Initialize()
 		return false;
 	}
 
+	m_IMGUI = IMGUIManager::Instance();
+
 	return true;
 }
 
@@ -116,6 +118,13 @@ void SystemClass::Shutdown()
 		m_Graphics->Shutdown();
 		delete m_Graphics;
 		m_Graphics = 0;
+	}
+
+	if (m_IMGUI)
+	{
+		m_IMGUI->ShutDown();
+		delete m_IMGUI;
+		m_IMGUI = 0;
 	}
 
 	// Shutdown the window.
@@ -173,7 +182,6 @@ bool SystemClass::Frame()
 	m_Fps->Frame();
 	m_Cpu->Frame();
 	m_Timer->Frame();
-
 	// Do the frame processing for the graphics object.
 	result = m_Graphics->Frame(m_Fps->GetFps(), m_Cpu->GetCpuPercentage(), m_Timer->GetTime());
 	if(!result)
@@ -181,12 +189,19 @@ bool SystemClass::Frame()
 		return false;
 	}
 
+	m_IMGUI->Frame();
+	m_IMGUI->Render();
+
 	return true;
 }
 
 
 LRESULT CALLBACK SystemClass::MessageHandler(HWND hwnd, UINT umsg, WPARAM wparam, LPARAM lparam)
 {
+	extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+	if (ImGui_ImplWin32_WndProcHandler(hwnd, umsg, wparam, lparam))
+		return true;
+
 	switch(umsg)
 	{
 		// Any other messages send to the default message handler as our application won't make use of them.
@@ -305,9 +320,14 @@ void SystemClass::ShutdownWindows()
 	return;
 }
 
+// Forward declare message handler from imgui_impl_win32.cpp
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT umessage, WPARAM wparam, LPARAM lparam)
 {
+	if (ImGui_ImplWin32_WndProcHandler(hwnd, umessage, wparam, lparam))
+		return true;
+
 	switch(umessage)
 	{
 		// Check if the window is being destroyed.

@@ -2,63 +2,63 @@
 <Project>
   <ProjectOutputs>
     <ProjectOutput>
-      <FullPath>C:\Users\namsy\Desktop\Graphics\Debug\Graphics.exe</FullPath>
+      <FullPath>C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Debug\Graphics.exe</FullPath>
     </ProjectOutput>
   </ProjectOutputs>
   <ContentFiles>
     <ContentFile>
-      <FullPath>C:\Users\namsy\Desktop\Graphics\Debug\depth_ps.cso</FullPath>
+      <FullPath>C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Debug\depth_ps.cso</FullPath>
     </ContentFile>
     <ContentFile>
-      <FullPath>C:\Users\namsy\Desktop\Graphics\Debug\depth_vs.cso</FullPath>
+      <FullPath>C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Debug\depth_vs.cso</FullPath>
     </ContentFile>
     <ContentFile>
-      <FullPath>C:\Users\namsy\Desktop\Graphics\Debug\fire_ps.cso</FullPath>
+      <FullPath>C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Debug\fire_ps.cso</FullPath>
     </ContentFile>
     <ContentFile>
-      <FullPath>C:\Users\namsy\Desktop\Graphics\Debug\fire_vs.cso</FullPath>
+      <FullPath>C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Debug\fire_vs.cso</FullPath>
     </ContentFile>
     <ContentFile>
-      <FullPath>C:\Users\namsy\Desktop\Graphics\Debug\foliage_ps.cso</FullPath>
+      <FullPath>C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Debug\foliage_ps.cso</FullPath>
     </ContentFile>
     <ContentFile>
-      <FullPath>C:\Users\namsy\Desktop\Graphics\Debug\foliage_vs.cso</FullPath>
+      <FullPath>C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Debug\foliage_vs.cso</FullPath>
     </ContentFile>
     <ContentFile>
-      <FullPath>C:\Users\namsy\Desktop\Graphics\Debug\horizontalblur_ps.cso</FullPath>
+      <FullPath>C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Debug\horizontalblur_ps.cso</FullPath>
     </ContentFile>
     <ContentFile>
-      <FullPath>C:\Users\namsy\Desktop\Graphics\Debug\horizontalblur_vs.cso</FullPath>
+      <FullPath>C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Debug\horizontalblur_vs.cso</FullPath>
     </ContentFile>
     <ContentFile>
-      <FullPath>C:\Users\namsy\Desktop\Graphics\Debug\shadow_ps.cso</FullPath>
+      <FullPath>C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Debug\shadow_ps.cso</FullPath>
     </ContentFile>
     <ContentFile>
-      <FullPath>C:\Users\namsy\Desktop\Graphics\Debug\shadow_vs.cso</FullPath>
+      <FullPath>C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Debug\shadow_vs.cso</FullPath>
     </ContentFile>
     <ContentFile>
-      <FullPath>C:\Users\namsy\Desktop\Graphics\Debug\skydome_ps.cso</FullPath>
+      <FullPath>C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Debug\skydome_ps.cso</FullPath>
     </ContentFile>
     <ContentFile>
-      <FullPath>C:\Users\namsy\Desktop\Graphics\Debug\skydome_vs.cso</FullPath>
+      <FullPath>C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Debug\skydome_vs.cso</FullPath>
     </ContentFile>
     <ContentFile>
-      <FullPath>C:\Users\namsy\Desktop\Graphics\Debug\softshadow_ps.cso</FullPath>
+      <FullPath>C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Debug\softshadow_ps.cso</FullPath>
     </ContentFile>
     <ContentFile>
-      <FullPath>C:\Users\namsy\Desktop\Graphics\Debug\softshadow_vs.cso</FullPath>
+      <FullPath>C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Debug\softshadow_vs.cso</FullPath>
     </ContentFile>
     <ContentFile>
-      <FullPath>C:\Users\namsy\Desktop\Graphics\Debug\terrain_ps.cso</FullPath>
+      <FullPath>C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Debug\terrain_ps.cso</FullPath>
     </ContentFile>
     <ContentFile>
-      <FullPath>C:\Users\namsy\Desktop\Graphics\Debug\terrain_vs.cso</FullPath>
+      <FullPath>C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Debug\terrain_vs.cso</FullPath>
     </ContentFile>
     <ContentFile>
-      <FullPath>C:\Users\namsy\Desktop\Graphics\Debug\verticalblur_ps.cso</FullPath>
+      <FullPath>C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Debug\verticalblur_ps.cso</FullPath>
     </ContentFile>
     <ContentFile>
-      <FullPath>C:\Users\namsy\Desktop\Graphics\Debug\verticalblur_vs.cso</FullPath>
+      <FullPath>C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Debug\verticalblur_vs.cso</FullPath>
     </ContentFile>
   </ContentFiles>
   <SatelliteDlls />

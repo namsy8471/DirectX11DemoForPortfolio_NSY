@@ -1,71 +1,117 @@
 ﻿FXC : warning X4717: Effects deprecated for D3DCompiler_47
   
-  compilation object save succeeded; see C:\Users\namsy\Desktop\Graphics\Release\depth_ps.cso
+  compilation object save succeeded; see C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Release\depth_ps.cso
 FXC : warning X4717: Effects deprecated for D3DCompiler_47
   
-  compilation object save succeeded; see C:\Users\namsy\Desktop\Graphics\Release\depth_vs.cso
+  compilation object save succeeded; see C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Release\depth_vs.cso
 FXC : warning X4717: Effects deprecated for D3DCompiler_47
-C:\Users\namsy\Desktop\Graphics\Graphics\data\fire_ps.hlsl(88,2-25): warning X3206: implicit truncation of vector type
+C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Graphics\data\fire_ps.hlsl(88,2-25): warning X3206: implicit truncation of vector type
   
-  compilation object save succeeded; see C:\Users\namsy\Desktop\Graphics\Release\fire_ps.cso
-FXC : warning X4717: Effects deprecated for D3DCompiler_47
-  
-  compilation object save succeeded; see C:\Users\namsy\Desktop\Graphics\Release\fire_vs.cso
+  compilation object save succeeded; see C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Release\fire_ps.cso
 FXC : warning X4717: Effects deprecated for D3DCompiler_47
   
-  compilation object save succeeded; see C:\Users\namsy\Desktop\Graphics\Release\foliage_ps.cso
+  compilation object save succeeded; see C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Release\fire_vs.cso
 FXC : warning X4717: Effects deprecated for D3DCompiler_47
   
-  compilation object save succeeded; see C:\Users\namsy\Desktop\Graphics\Release\foliage_vs.cso
+  compilation object save succeeded; see C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Release\foliage_ps.cso
 FXC : warning X4717: Effects deprecated for D3DCompiler_47
   
-  compilation object save succeeded; see C:\Users\namsy\Desktop\Graphics\Release\horizontalblur_ps.cso
+  compilation object save succeeded; see C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Release\foliage_vs.cso
 FXC : warning X4717: Effects deprecated for D3DCompiler_47
   
-  compilation object save succeeded; see C:\Users\namsy\Desktop\Graphics\Release\horizontalblur_vs.cso
+  compilation object save succeeded; see C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Release\horizontalblur_ps.cso
 FXC : warning X4717: Effects deprecated for D3DCompiler_47
   
-  compilation object save succeeded; see C:\Users\namsy\Desktop\Graphics\Release\shadow_ps.cso
+  compilation object save succeeded; see C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Release\horizontalblur_vs.cso
 FXC : warning X4717: Effects deprecated for D3DCompiler_47
   
-  compilation object save succeeded; see C:\Users\namsy\Desktop\Graphics\Release\shadow_vs.cso
+  compilation object save succeeded; see C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Release\shadow_ps.cso
 FXC : warning X4717: Effects deprecated for D3DCompiler_47
   
-  compilation object save succeeded; see C:\Users\namsy\Desktop\Graphics\Release\skydome_ps.cso
+  compilation object save succeeded; see C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Release\shadow_vs.cso
 FXC : warning X4717: Effects deprecated for D3DCompiler_47
   
-  compilation object save succeeded; see C:\Users\namsy\Desktop\Graphics\Release\skydome_vs.cso
+  compilation object save succeeded; see C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Release\skydome_ps.cso
 FXC : warning X4717: Effects deprecated for D3DCompiler_47
   
-  compilation object save succeeded; see C:\Users\namsy\Desktop\Graphics\Release\softshadow_ps.cso
+  compilation object save succeeded; see C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Release\skydome_vs.cso
 FXC : warning X4717: Effects deprecated for D3DCompiler_47
   
-  compilation object save succeeded; see C:\Users\namsy\Desktop\Graphics\Release\softshadow_vs.cso
+  compilation object save succeeded; see C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Release\softshadow_ps.cso
 FXC : warning X4717: Effects deprecated for D3DCompiler_47
   
-  compilation object save succeeded; see C:\Users\namsy\Desktop\Graphics\Release\terrain_ps.cso
+  compilation object save succeeded; see C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Release\softshadow_vs.cso
 FXC : warning X4717: Effects deprecated for D3DCompiler_47
   
-  compilation object save succeeded; see C:\Users\namsy\Desktop\Graphics\Release\terrain_vs.cso
+  compilation object save succeeded; see C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Release\terrain_ps.cso
 FXC : warning X4717: Effects deprecated for D3DCompiler_47
   
-  compilation object save succeeded; see C:\Users\namsy\Desktop\Graphics\Release\verticalblur_ps.cso
+  compilation object save succeeded; see C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Release\terrain_vs.cso
 FXC : warning X4717: Effects deprecated for D3DCompiler_47
   
-  compilation object save succeeded; see C:\Users\namsy\Desktop\Graphics\Release\verticalblur_vs.cso
+  compilation object save succeeded; see C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Release\verticalblur_ps.cso
+FXC : warning X4717: Effects deprecated for D3DCompiler_47
+  
+  compilation object save succeeded; see C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Release\verticalblur_vs.cso
+  bitmapclass.cpp
+  cameraclass.cpp
+  CpuClass.cpp
+  d3dclass.cpp
+  DDSTextureLoader.cpp
+  DepthShaderClass.cpp
+  FireShaderClass.cpp
+C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Graphics\FireShaderClass.cpp(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오.
+  foliageclass.cpp
+C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Graphics\foliageclass.cpp(244,49): warning C4316: 'FoliageClass::InstanceType': 힙에 할당된 개체가 16에 맞추어져 있지 않을 수도 있습니다
+C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Graphics\foliageclass.cpp(380,40): warning C4244: '=': 'int'에서 'float'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Graphics\foliageclass.cpp(381,40): warning C4244: '=': 'int'에서 'float'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+  foliageshaderclass.cpp
+  fontclass.cpp
+  fontshaderclass.cpp
+  FpsClass.cpp
   graphicsclass.cpp
-C:\Users\namsy\Desktop\Graphics\Graphics\graphicsclass.cpp(293,26): warning C4316: 'LightClass': 힙에 할당된 개체가 16에 맞추어져 있지 않을 수도 있습니다
-C:\Users\namsy\Desktop\Graphics\Graphics\graphicsclass.cpp(1744,20): warning C4018: '<': signed 또는 unsigned가 일치하지 않습니다.
+C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Graphics\graphicsclass.cpp(295,26): warning C4316: 'LightClass': 힙에 할당된 개체가 16에 맞추어져 있지 않을 수도 있습니다
+C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Graphics\graphicsclass.cpp(1746,20): warning C4018: '<': signed 또는 unsigned가 일치하지 않습니다.
+  HorizontalBlurShaderClass.cpp
+  IMGUIManager.cpp
+C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Graphics\IMGUIManager.h(11,18): error C2061: 구문 오류: 식별자 'HWND'
+  C:\Program Files (x86)\Windows Kits\10\Include\10.0.20348.0\um\dinput.h: DIRECTINPUT_VERSION undefined. Defaulting to version 0x0800
+C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Graphics\IMGUIManager.cpp(26,1): error C2511: 'bool IMGUIManager::Initialize(HWND,ID3D11Device *,ID3D11DeviceContext *)': 오버로드된 멤버 함수가 'IMGUIManager'에 없습니다.
+C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Graphics\IMGUIManager.h(2): message : 'IMGUIManager' 선언을 참조하십시오.
+  imgui_impl_dx11.cpp
+  C:\Program Files (x86)\Windows Kits\10\Include\10.0.20348.0\um\dinput.h: DIRECTINPUT_VERSION undefined. Defaulting to version 0x0800
+  imgui_impl_win32.cpp
+  C:\Program Files (x86)\Windows Kits\10\Include\10.0.20348.0\um\dinput.h: DIRECTINPUT_VERSION undefined. Defaulting to version 0x0800
+  imgui.cpp
+  imgui_demo.cpp
+  imgui_draw.cpp
+  컴파일하고 있습니다...
+  imgui_tables.cpp
+  imgui_widgets.cpp
   inputclass.cpp
   C:\Program Files (x86)\Windows Kits\10\Include\10.0.20348.0\um\dinput.h: DIRECTINPUT_VERSION undefined. Defaulting to version 0x0800
+  LightClass.cpp
+  lightshaderclass.cpp
   main.cpp
   C:\Program Files (x86)\Windows Kits\10\Include\10.0.20348.0\um\dinput.h: DIRECTINPUT_VERSION undefined. Defaulting to version 0x0800
+  modelclass.cpp
+  ModelClassForNoiseFilter.cpp
+  OrthoWindowClass.cpp
+  RenderTextureClass.cpp
+  ShadowShaderClass.cpp
+  SkyDomeClass.cpp
+  SkyDomeShaderClass.cpp
+  SoftShadowShaderClass.cpp
+  SoundClass.cpp
+  stdafx.cpp
   systemclass.cpp
   C:\Program Files (x86)\Windows Kits\10\Include\10.0.20348.0\um\dinput.h: DIRECTINPUT_VERSION undefined. Defaulting to version 0x0800
-C:\Users\namsy\Desktop\Graphics\Graphics\systemclass.cpp(197,2): warning C4065: switch문에 'default'가 있으나 'case' 레이블이 없습니다.
-  코드를 생성하고 있습니다.
-  0 of 960 functions ( 0.0%) were compiled, the rest were copied from previous compilation.
-    0 functions were new in current compilation
-    0 functions had inline decision re-evaluated but remain unchanged
-  코드를 생성했습니다.
-  Graphics.vcxproj -> C:\Users\namsy\Desktop\Graphics\Release\Graphics.exe
+C:\Users\namsy\Documents\GitHub\DirectX11Demo_Siyoung_Nam\Graphics\systemclass.cpp(216,2): warning C4065: switch문에 'default'가 있으나 'case' 레이블이 없습니다.
+  TerrainClass.cpp
+  TerrainShaderClass.cpp
+  textclass.cpp
+  컴파일하고 있습니다...
+  textureclass.cpp
+  textureshaderclass.cpp
+  TimerClass.cpp
+  VerticalBlurShaderClass.cpp

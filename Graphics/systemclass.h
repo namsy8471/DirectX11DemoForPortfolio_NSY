@@ -25,6 +25,7 @@
 #include "FpsClass.h"
 #include "CpuClass.h"
 #include "TimerClass.h"
+#include "IMGUIManager.h"
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -58,6 +59,7 @@ private:
 	FpsClass* m_Fps;
 	CpuClass* m_Cpu;
 	TimerClass* m_Timer;
+	IMGUIManager* m_IMGUI;
 };
 
 

@@ -2,7 +2,7 @@
 // Filename: d3dclass.cpp
 ////////////////////////////////////////////////////////////////////////////////
 #include "d3dclass.h"
-
+#include "IMGUIManager.h"
 
 D3DClass::D3DClass()
 {
@@ -431,6 +431,14 @@ bool D3DClass::Initialize(int screenWidth, int screenHeight, bool vsync, HWND hw
 	{
 		return false;
 	}
+	
+	IMGUIManager* m_IMGUI;
+	m_IMGUI = IMGUIManager::Instance();
+	// IMGUI Initialize
+	if (!m_IMGUI->Initialize(hwnd, m_device, m_deviceContext))
+	{
+		return false;
+	}
 
     return true;
 }
@@ -515,6 +523,7 @@ void D3DClass::Shutdown()
 		m_rasterStateNoCulling->Release();
 		m_rasterStateNoCulling = 0;
 	}
+
 
 	return;
 }
