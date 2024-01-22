@@ -21,3 +21,29 @@
 ![image](https://github.com/namsy8471/DirectX11DemoForPortfolio_NSY/assets/31647755/f4b43db1-0b06-4a5e-a63b-c8b82e987963)
 
 하이트 맵을 사용한 Terrain, 인스턴싱(2000개)한 2D 모델(풀)과 Billboard, 퐁 일루미네이션 모델, 그림자, Direct Input을 이용한 이동 및 카메라 이동을 구현한 Scene입니다. 
+
+
+// In English
+
+It is demo made by DirectX11.
+
+Feature
+ - SkyBox
+ - Collision Detecting (Left Mouse Button Clicking can detect 3D model and make it inactive)
+ - Camera can move in Keyboard input
+ - Single texturing in 3D Model
+ - Making Terrain by Height map
+ - Diffuse, Ambient, specular in Phong Illumination model
+ - Using Render Texture for soft shadow effect
+ - Billboard and Instancing for 2D model
+ - Using Noise mapping(Fire effect)
+ - Sound by Direct Sound(BGM, SFX)
+ - Multi Scene(Using enum type for seperating Rendering sectors)
+ - Font Rendering for Scene info(FPS, CPU usage, numbers of present models in Scene, Screen size etc)
+![image](https://github.com/namsy8471/DirectX11DemoForPortfolio_NSY/assets/31647755/bf59dafa-3dc4-4421-88ff-8e048d593696)
+
+Fire by Noise filter, Textbox, and Mouse Cursor
+
+![image](https://github.com/namsy8471/DirectX11DemoForPortfolio_NSY/assets/31647755/f4b43db1-0b06-4a5e-a63b-c8b82e987963)
+
+Height map terrain, Billboard and Instancing(2000 counts) for 2D model(Grass), Phong Illumination model, Soft shadow, Moving and Camera moving by Direct Input 
