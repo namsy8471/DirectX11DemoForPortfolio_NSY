@@ -22,6 +22,7 @@
 
 하이트 맵을 사용한 Terrain, 인스턴싱(2000개)한 2D 모델(풀)과 Billboard, 퐁 일루미네이션 모델, 그림자, Direct Input을 이용한 이동 및 카메라 이동을 구현한 Scene입니다. 
 
+Video URL: https://www.youtube.com/watch?v=YtkRcS8QO4E
 
 // In English
 
@@ -47,3 +48,5 @@ Fire by Noise filter, Textbox, and Mouse Cursor
 ![image](https://github.com/namsy8471/DirectX11DemoForPortfolio_NSY/assets/31647755/f4b43db1-0b06-4a5e-a63b-c8b82e987963)
 
 Height map terrain, Billboard and Instancing(2000 counts) for 2D model(Grass), Phong Illumination model, Soft shadow, Moving and Camera moving by Direct Input 
+
+Video URL: https://www.youtube.com/watch?v=YtkRcS8QO4E
