@@ -50,3 +50,31 @@ Fire by Noise filter, Textbox, and Mouse Cursor
 Height map terrain, Billboard and Instancing(2000 counts) for 2D model(Grass), Phong Illumination model, Soft shadow, Moving and Camera moving by Direct Input 
 
 Video URL: https://www.youtube.com/watch?v=YtkRcS8QO4E
+
+// 日本語
+
+DirectX11で実装したデモです。
+
+特徴
+
+-Sky Boxを実装
+-Collision Detectingを実装し、マウス左クリックで検出された3Dモデルを非アクティブ化
+-キーボード操作によるカメラ移動
+-3Dモデルは単一テクスチャで処理
+-Terrainを使用して効果的な地形生成
+-フォン・イルミネーションモデルを用いたライティングで、Diffuse、Ambient、Specularを実装
+-Render Textureを用いた影の実装
+-2Dモデルのビルボードとインスタンシングを実装
+-火のエフェクトにノイズテクスチャを使用
+-Direct Soundを利用してBGMと効果音を実装
+-レンダリング領域を分割し、マルチシーンを実装
+-フォントレンダリングを利用して、シーン情報（FPS、CPU使用率、現在のモデル数、画面サイズなど）を表示
+![image](https://github.com/namsy8471/DirectX11DemoForPortfolio_NSY/assets/31647755/bf59dafa-3dc4-4421-88ff-8e048d593696)
+
+ノイズフィルターを用いた火、テキストボックス、マウスカーソルの実装
+
+![image](https://github.com/namsy8471/DirectX11DemoForPortfolio_NSY/assets/31647755/f4b43db1-0b06-4a5e-a63b-c8b82e987963)
+
+ハイトマップを使用したTerrain、インスタンシング（2000個）された2Dモデル（草）とビルボード、フォン・イルミネーションモデル、影、Direct Inputを利用した移動およびカメラ移動を実装したシーンです。
+
+Video URL: https://www.youtube.com/watch?v=YtkRcS8QO4E
