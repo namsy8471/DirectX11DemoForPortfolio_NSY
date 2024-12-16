@@ -2,6 +2,7 @@
  다이렉트X11로 구현한 데모입니다.
 
 기간: 2개월
+
 특징
 - Sky Box를 구현
 - Collision Detecting를 구현해 마우스 좌클릭에 detecting된 3D 모델을 비활성화 처리
