@@ -1,5 +1,7 @@
 # DirectX11DemoForPortfolio_NSY
- 다이렉트X11로 구현한 데모입니다.
+다이렉트X11로 구현한 데모입니다.
+
+개발 동기: 게임 엔진에 기반이 되는 DirectX11을 직접 건드려보고 다양한 그래픽 기술을 구현해보고 싶었습니다.
 
 기간: 2개월
 
@@ -30,6 +32,9 @@ Video URL: https://www.youtube.com/watch?v=YtkRcS8QO4E
 
 It is demo made by DirectX11.
 
+Development Motivation:
+I wanted to work directly with DirectX11, which serves as the foundation for game engines, and implement various graphics technologies.
+
 Duration: 2 months
 
 Feature
@@ -58,6 +63,9 @@ Video URL: https://www.youtube.com/watch?v=YtkRcS8QO4E
 // 日本語
 
 DirectX11で実装したデモです。
+
+開発動機:
+ゲームエンジンの基盤となるDirectX11を直接扱い、さまざまなグラフィック技術を実装してみたかったからです。
 
 機関：2ヶ月
 
