@@ -1,6 +1,7 @@
 # DirectX11DemoForPortfolio_NSY
  다이렉트X11로 구현한 데모입니다.
 
+기간: 2개월
 특징
 - Sky Box를 구현
 - Collision Detecting를 구현해 마우스 좌클릭에 detecting된 3D 모델을 비활성화 처리
@@ -28,6 +29,7 @@ Video URL: https://www.youtube.com/watch?v=YtkRcS8QO4E
 
 It is demo made by DirectX11.
 
+Duration: 2 months
 Feature
  - SkyBox
  - Collision Detecting (Left Mouse Button Clicking can detect 3D model and make it inactive)
@@ -55,8 +57,8 @@ Video URL: https://www.youtube.com/watch?v=YtkRcS8QO4E
 
 DirectX11で実装したデモです。
 
+機関：2ヶ月
 特徴
-
 - Sky Boxを実装
 - Collision Detectingを実装し、マウス左クリックで検出された3Dモデルを非アクティブ化
 - キーボード操作によるカメラ移動
