@@ -5,6 +5,8 @@
 
 개발인수: 1명
 
+동작환경: Window 11
+
 기간: 2개월
 
 특징
@@ -39,6 +41,8 @@ I wanted to work directly with DirectX11, which serves as the foundation for gam
 
 Development Personnel: 1 Person
 
+Operating Environment: Windows 11
+
 Duration: 2 months
 
 Feature
@@ -72,6 +76,8 @@ DirectX11で実装したデモです。
 ゲームエンジンの基盤となるDirectX11を直接扱い、さまざまなグラフィック技術を実装してみたかったからです。
 
 開発人数: 1名
+
+動作環境：Windows 11
 
 機関：2ヶ月
 
