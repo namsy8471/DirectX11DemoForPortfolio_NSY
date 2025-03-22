@@ -333,7 +333,7 @@ bool D3DClass::Initialize(int screenWidth, int screenHeight, bool vsync, HWND hw
 	// Now set the rasterizer state.
 	m_deviceContext->RSSetState(m_rasterState);
 	
-	// ¹è¸é ÄÃ¸µÀ» ÇØÁ¦ÇÏ´Â ·¡½ºÅÍ ±¸Á¶Ã¼¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+	// ë°°ë©´ ì»¬ë§ì„ í•´ì œí•˜ëŠ” ëž˜ìŠ¤í„° êµ¬ì¡°ì²´ë¥¼ ì„¤ì •í•©ë‹ˆë‹¤.
 	rasterDesc.AntialiasedLineEnable = false;
 	rasterDesc.CullMode = D3D11_CULL_NONE;
 	rasterDesc.DepthBias = 0;
@@ -345,7 +345,7 @@ bool D3DClass::Initialize(int screenWidth, int screenHeight, bool vsync, HWND hw
 	rasterDesc.ScissorEnable = false;
 	rasterDesc.SlopeScaledDepthBias = 0.0f;
 
-	// µµ·Á³»Áö ¾Ê´Â ·¡½ºÅÍ ¶óÀÌÀú »óÅÂ¸¦ ¸¸µì´Ï´Ù.
+	// ë„ë ¤ë‚´ì§€ ì•ŠëŠ” ëž˜ìŠ¤í„° ë¼ì´ì € ìƒíƒœë¥¼ ë§Œë“­ë‹ˆë‹¤.
 	if (FAILED(m_device->CreateRasterizerState(&rasterDesc, &m_rasterStateNoCulling)))
 	{
 		return false;
@@ -407,7 +407,7 @@ bool D3DClass::Initialize(int screenWidth, int screenHeight, bool vsync, HWND hw
 
 	// Create an alpha enabled blend state description.
 	blendStateDescription.RenderTarget[0].BlendEnable = TRUE;
-	blendStateDescription.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
+	blendStateDescription.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
 	blendStateDescription.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
 	blendStateDescription.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
 	blendStateDescription.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
@@ -658,27 +658,27 @@ void D3DClass::TurnOffAlphaBlending()
 
 void D3DClass::SetBackBufferRenderTarget()
 {
-	// ·»´õ Å¸°Ù ºä¿Í ±íÀÌ ½ºÅÙ½Ç ¹öÆÛ¸¦ Ãâ·Â ·»´õ ÆÄÀÌÇÁ ¶óÀÎ¿¡ ¹ÙÀÎµùÇÕ´Ï´Ù.
+	// ë Œë” íƒ€ê²Ÿ ë·°ì™€ ê¹Šì´ ìŠ¤í…ì‹¤ ë²„í¼ë¥¼ ì¶œë ¥ ë Œë” íŒŒì´í”„ ë¼ì¸ì— ë°”ì¸ë”©í•©ë‹ˆë‹¤.
 	m_deviceContext->OMSetRenderTargets(1, &m_renderTargetView, m_depthStencilView);
 }
 
 
 void D3DClass::ResetViewport()
 {
-	// ºäÆ÷Æ®¸¦ Àç¼³Á¤ÇÕ´Ï´Ù.
+	// ë·°í¬íŠ¸ë¥¼ ìž¬ì„¤ì •í•©ë‹ˆë‹¤.
 	m_deviceContext->RSSetViewports(1, &m_viewport);
 }
 
 
 void D3DClass::TurnOnCulling()
 {
-	// ÄÃ¸µ ·¡½ºÅÍ ¶óÀÌÀú »óÅÂ¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+	// ì»¬ë§ ëž˜ìŠ¤í„° ë¼ì´ì € ìƒíƒœë¥¼ ì„¤ì •í•©ë‹ˆë‹¤.
 	m_deviceContext->RSSetState(m_rasterState);
 }
 
 
 void D3DClass::TurnOffCulling()
 {
-	// µÞ¸é ¾øÀ½ ÄÃ¸µ ·¡½ºÅÍ ¶óÀÌÀú »óÅÂ¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+	// ë’·ë©´ ì—†ìŒ ì»¬ë§ ëž˜ìŠ¤í„° ë¼ì´ì € ìƒíƒœë¥¼ ì„¤ì •í•©ë‹ˆë‹¤.
 	m_deviceContext->RSSetState(m_rasterStateNoCulling);
 }
