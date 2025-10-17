@@ -1,173 +1,122 @@
-# DirectX11DemoForPortfolio_NSY
-다이렉트X11로 구현한 데모입니다.
+# 🎮 DirectX11 Demo for Portfolio – NSY  
+다이렉트X11 기반으로 제작한 그래픽스 포트폴리오 데모  
+DirectX11で実装したグラフィックスデモ  
+A graphics demo implemented with DirectX 11
+
+---
+
+## 🎥 Preview / プレビュー / 미리보기  
+
+| 🔥 Noise Fire Effect | 🌿 Terrain + Billboard + Instancing |
+|:----------------------:|:----------------------------------:|
+| ![Noise Fire](https://github.com/namsy8471/DirectX11DemoForPortfolio_NSY/assets/31647755/bf59dafa-3dc4-4421-88ff-8e048d593696) | ![Terrain Scene](https://github.com/namsy8471/DirectX11DemoForPortfolio_NSY/assets/31647755/f4b43db1-0b06-4a5e-a63b-c8b82e987963) |
+
+🎬 **Video (YouTube):** [https://www.youtube.com/watch?v=YtkRcS8QO4E](https://www.youtube.com/watch?v=YtkRcS8QO4E)
+
+---
+
+## 🧠 개발 동기 / 開発動機 / Development Motivation  
+**DirectX11**을 직접 다뤄보며 게임 엔진의 렌더링 원리를 이해하고, 다양한 그래픽 기술을 스스로 구현해보고자 했습니다.  
+ゲームエンジンの基盤である **DirectX11** を直接扱い、レンダリングの仕組みを理解し、様々なグラフィック技術を自分で実装することを目的としました。  
+I wanted to work directly with **DirectX 11**, the core API behind game engines, to understand rendering principles and implement various graphics techniques on my own.
+
+---
+
+## ⚙️ 개발 개요 / 開発概要 / Development Overview
+
+| 항목 / 項目 / Item | 내용 / 内容 / Details |
+|--------------------|----------------------|
+| **엔진 / エンジン / Engine** | DirectX11 |
+| **언어 / 言語 / Language** | C++ |
+| **기간 / 期間 / Duration** | 2023/10 ~ 2023/12 |
+| **개발 인원 / 開発人数 / Team** | 1명 (개인) / 1名（個人） / 1 (solo) |
+| **환경 / 環境 / Environment** | Visual Studio 2022, Windows 11 |
+
+---
+
+## 🌟 주요 기능 / 主な機能 / Key Features
+
+### 한국어 (Korean)
+- 🌌 **SkyBox 구현** — 배경 큐브맵을 이용해 3D 공간의 하늘 표현  
+- 🧱 **Collision Detection** — 마우스 좌클릭 시 감지된 3D 모델을 비활성화 처리  
+- 🎮 **Keyboard 입력 기반 카메라 이동** — WASD 및 마우스 조작으로 자유로운 시점 이동  
+- ⛰️ **Height Map 기반 Terrain 생성** — 고도 맵을 이용해 지형 자동 생성  
+- 💡 **Phong Illumination 적용** — Diffuse, Ambient, Specular 조명 모델 구현  
+- 🌫️ **Render Texture 기반 Soft Shadow** — 그림자의 부드러운 가장자리 표현  
+- 🍃 **Billboard 및 Instancing (2000개 2D 오브젝트)** — 대량의 풀(Grass) 렌더링 최적화  
+- 🔥 **Noise Texture 기반 불 효과** — 노이즈 맵을 활용한 실시간 파티클 불 구현  
+- 🔊 **DirectSound** — BGM 및 효과음 재생  
+- 🧭 **Multi Scene Rendering** — 씬 단위로 렌더링 영역 분리  
+- 🖋️ **Font Rendering HUD** — FPS, CPU 사용률, 모델 수, 화면 해상도 표시  
+
+---
+
+### 日本語 (Japanese)
+- 🌌 **SkyBox実装** — 背景キューブマップを使用して空間の空を表現  
+- 🧱 **Collision Detection** — マウス左クリックで検出された3Dモデルを非アクティブ化  
+- 🎮 **キーボード操作によるカメラ移動** — WASDとマウス操作で自由に視点を移動  
+- ⛰️ **ハイトマップによる地形生成** — 高度マップから地形を自動生成  
+- 💡 **フォン・イルミネーションモデル** — Diffuse、Ambient、Specularの光反射を実装  
+- 🌫️ **Render Textureを使用したソフトシャドウ** — 柔らかい影を表現  
+- 🍃 **ビルボードとインスタンシング（2000個の2Dオブジェクト）** — 草などの大量描画を最適化  
+- 🔥 **ノイズテクスチャを用いた火のエフェクト** — ノイズマップを利用したリアルタイム炎表現  
+- 🔊 **DirectSoundによるBGM・効果音再生**  
+- 🧭 **マルチシーンレンダリング** — シーン単位でレンダリングを分割  
+- 🖋️ **フォントレンダリングHUD** — FPS、CPU使用率、モデル数、画面解像度を表示  
+
+---
+
+### English
+- 🌌 **SkyBox Implementation** — Rendered 3D sky using a background cubemap  
+- 🧱 **Collision Detection** — Detects clicked 3D models and deactivates them on left mouse click  
+- 🎮 **Camera Movement via Keyboard** — Move the camera freely using WASD keys and mouse input  
+- ⛰️ **Height Map Terrain Generation** — Automatically generates terrain based on height maps  
+- 💡 **Phong Illumination Model** — Implemented Diffuse, Ambient, and Specular lighting  
+- 🌫️ **Soft Shadow via Render Texture** — Achieved smooth shadow edges using render-to-texture  
+- 🍃 **Billboard and Instancing (2,000+ 2D Objects)** — Optimized large-scale grass rendering  
+- 🔥 **Noise Texture-based Fire Effect** — Real-time flame simulation using noise textures  
+- 🔊 **DirectSound Integration** — Implemented background music and sound effects  
+- 🧭 **Multi-Scene Rendering** — Divided rendering space into separate scenes  
+- 🖋️ **Font Rendering HUD** — Displays FPS, CPU usage, object count, and resolution info 
+
+---
+
+## 💡 어려웠던 점 / 苦労した点 / Challenges
+Unity와 달리 오류의 원인을 추적하기 어려워 신중하고 보수적으로 개발했습니다.  
+C++ 및 DirectX 프로젝트는 처음이라 **객체지향 설계 부족**을 겪으며, 설계의 중요성을 깊이 배웠습니다.  
+
+Unityとは異なり、エラー原因の特定が難しい環境だったため、慎重かつ保守的に開発を進めました。  
+C++やDirectXによる開発は初めてで、**オブジェクト指向設計の不足**に苦労し、設計の重要性を実感しました。  
+
+Unlike Unity, debugging DirectX was difficult, so I took a careful and conservative development approach.  
+It was my **first C++/DirectX project**, and I learned the importance of proper **object-oriented design** through the struggle.
+
+---
+
+## 🧩 기술적 포인트 / 技術的ポイント / Technical Highlights  
+Rastertek 예제 코드를 기반으로 **스페큘러 성분 추가**, **소프트 섀도우 셰이더 수정** 등 직접 개선 및 확장.  
+Direct3D 렌더링 파이프라인, 셰이더 스테이지, 최적화 구조를 체계적으로 이해함.  
+
+Rastertekのサンプルコードを基に、**スペキュラ成分の追加**や**ソフトシャドウ実装**などを独自に改良。  
+Direct3Dのレンダリングパイプラインやシェーダー構造を体系的に理解。  
 
-개발 동기: 게임 엔진에 기반이 되는 DirectX11을 직접 건드려보고 다양한 그래픽 기술을 구현해보고 싶었습니다.
+Based on Rastertek examples, enhanced shaders by **adding specular reflection** and **implementing soft shadows**.  
+Gained structured understanding of the **Direct3D pipeline**, shader stages, and performance optimization.
 
-개발엔진: DirectX11
+---
 
-개발인수: 1명
+## 🧾 요약 / まとめ / Summary  
+DirectX11을 통해 게임 엔진의 기반 구조를 이해하고, 그래픽스 렌더링의 저수준 원리를 체득했습니다.  
+이 프로젝트는 Unity와 DirectX 사이의 기술적 간극을 메우는 첫 단계였습니다.  
 
-동작환경: Window 11
+DirectX11を通してゲームエンジンの基盤構造を理解し、グラフィックスレンダリングの低レベル原理を体得しました。  
+本プロジェクトは、UnityとDirectXの技術的ギャップを埋める第一歩です。  
 
-기간: 2개월
+Through this project, I gained a solid understanding of low-level graphics rendering principles.  
+It represents my **first step in bridging the gap between Unity and DirectX development.**
 
-특징
-- Sky Box를 구현
-- Collision Detecting를 구현해 마우스 좌클릭에 detecting된 3D 모델을 비활성화 처리
-- Keyboard 처리를 통한 카메라 이동
-- 3D 모델은 단일 텍스처 처리
-- Terrain을 사용하여 효과적인 지형 생성
-- 퐁 일루미네이션 모델을 사용한 라이팅으로 Diffuse, Ambient, specular 구현
-- Render Texture를 통한 그림자를 구현
-- 2D 모델의 빌보드와 인스턴스를 구현
-- 불 효과를 위해 노이즈 텍스처를 사용
-- Direct Sound를 통한 BGM과 효과음
-- 렌더링 구역을 나누어 multi scene을 구현
-- 폰트 렌더링을 통한 Scene info(FPS, CPU 사용률, 현재 모델 수, 화면 크기 등) 구현
+---
 
-내가 가장 주의를 기울인 부분
-
-Unity와 달리, 오류가 발생했을 때 그 원인을 특정하기 어려운 환경이었기 때문에, 신중하고 보수적으로 개발을 진행하도록 했습니다. 이러한 접근을 통해 예상치 못한 문제를 최소화하려고 노력했습니다.
-
-
-가장 어려웠던 점
-
-솔직히 말씀드리면, C++를 이용한 DirectX 개발은 이번이 처음이었고, 더 나아가 C++로 무언가를 제작하는 것 자체도 처음이었습니다. 따라서 객체 지향 설계가 충분히 이루어지지 않았던 점이 가장 어려웠던 부분입니다. 이 경험을 통해 설계의 중요성을 다시 한번 배우게 되었습니다.
-
-
-가장 공들인 부분
-
-최종적으로 완벽하게 객체 지향을 준수할 수는 없었지만, 노이즈 필터, 빌보드, 소프트 섀도우 등 다양한 기술을 구현하려고 노력했습니다. 이러한 기술들이 어떻게 작동하는지 주목해 주시면 감사하겠습니다.
-
-
-참고한 소스 파일
-
-모든 기술의 소스 코드는 Rastertek 예제 파일의 코드를 참고했습니다. 하지만, 실제로 작동시키고, 적절하게 배치한 것은 저 자신의 능력입니다. 예를 들어, 예제 파일의 섀도우 셰이더는 Phong Illumination을 완벽하게 지원하지 않았기 때문에, 스페큘러 성분을 추가하도록 셰이더를 조정했습니다. 또한, 소프트 섀도우를 구현하기 위해 셰이더 코드를 수정하는 등 스스로 공부를 하며 살을 덧붙였습니다.
-
-![image](https://github.com/namsy8471/DirectX11DemoForPortfolio_NSY/assets/31647755/bf59dafa-3dc4-4421-88ff-8e048d593696)
-
-노이즈 필터를 사용한 불, 텍스트 박스, 마우스 커서입니다.
-
-![image](https://github.com/namsy8471/DirectX11DemoForPortfolio_NSY/assets/31647755/f4b43db1-0b06-4a5e-a63b-c8b82e987963)
-
-하이트 맵을 사용한 Terrain, 인스턴싱(2000개)한 2D 모델(풀)과 Billboard, 퐁 일루미네이션 모델, 그림자, Direct Input을 이용한 이동 및 카메라 이동을 구현한 Scene입니다. 
-
-Video URL: https://www.youtube.com/watch?v=YtkRcS8QO4E
-
-// In English
-
-It is demo made by DirectX11.
-
-Development Motivation:
-I wanted to work directly with DirectX11, which serves as the foundation for game engines, and implement various graphics technologies.
-
-Engine: DirectX11
-
-Development Personnel: 1 Person
-
-Operating Environment: Windows 11
-
-Duration: 2 months
-
-Feature
- - SkyBox
- - Collision Detecting (Left Mouse Button Clicking can detect 3D model and make it inactive)
- - Camera can move in Keyboard input
- - Single texturing in 3D Model
- - Making Terrain by Height map
- - Diffuse, Ambient, specular in Phong Illumination model
- - Using Render Texture for soft shadow effect
- - Billboard and Instancing for 2D model
- - Using Noise mapping(Fire effect)
- - Sound by Direct Sound(BGM, SFX)
- - Multi Scene(Using enum type for seperating Rendering sectors)
- - Font Rendering for Scene info(FPS, CPU usage, numbers of present models in Scene, Screen size etc)
-
-What were I careful about when creating the program?
-
-Unlike Unity, it was a difficult environment to identify the cause of an error, so I tried to proceed with development cautiously and conservatively. Through this approach, I tried to minimize unexpected troubles.
-
-
-What did I find difficult when creating the program?
-
-To be honest, this was my first experience developing DirectX using C++, and it was also my first time creating something with C++. Therefore, the most difficult part was that object-oriented design was not sufficiently implemented. Through this experience, I was able to learn the importance of design once again.
-
-
-What points in the program do I want you to pay particular attention to in the parts I worked hard on?
-
-Although the source code could not fully comply with object-oriented programming in the end, I tried to implement various techniques such as noise filters, billboards, and soft shadows. I would appreciate it if you could pay attention to how these techniques work.
-
-
-If I took some source codes as reference, what part of them did you use?
-
-To be honest, I referred to the code in the example files for the source code of all the techniques. However, it was my own skill that made them actually work and rearranged them appropriately. For example, the shadow shader in the example file did not fully support Phong Illumination, so I adjusted the shader to add a specular component. I also made my own modifications, such as modifying the shader code to achieve soft shadows.
-
-![image](https://github.com/namsy8471/DirectX11DemoForPortfolio_NSY/assets/31647755/bf59dafa-3dc4-4421-88ff-8e048d593696)
-
-Fire by Noise filter, Textbox, and Mouse Cursor
-
-![image](https://github.com/namsy8471/DirectX11DemoForPortfolio_NSY/assets/31647755/f4b43db1-0b06-4a5e-a63b-c8b82e987963)
-
-Height map terrain, Billboard and Instancing(2000 counts) for 2D model(Grass), Phong Illumination model, Soft shadow, Moving and Camera moving by Direct Input 
-
-Video URL: https://www.youtube.com/watch?v=YtkRcS8QO4E
-
-// 日本語
-
-DirectX11で実装したデモです。
-
-開発動機:
-ゲームエンジンの基盤となるDirectX11を直接扱い、さまざまなグラフィック技術を実装してみたかったからです。
-
-開発エンジン：DirectX11
-
-開発人数: 1名
-
-動作環境：Windows 11
-
-機関：2ヶ月
-
-特徴
-- Sky Boxを実装
-- Collision Detectingを実装し、マウス左クリックで検出された3Dモデルを非アクティブ化
-- キーボード操作によるカメラ移動
-- 3Dモデルは単一テクスチャで処理
-- Terrainを使用して効果的な地形生成
-- フォン・イルミネーションモデルを用いたライティングで、Diffuse、Ambient、Specularを実装
-- Render Textureを用いた影の実装
-- 2Dモデルのビルボードとインスタンシングを実装
-- 火のエフェクトにノイズテクスチャを使用
-- Direct Soundを利用してBGMと効果音を実装
-- レンダリング領域を分割し、マルチシーンを実装
-- フォントレンダリングを利用して、シーン情報（FPS、CPU使用率、現在のモデル数、画面サイズなど）を表示
-
-
-一番注意した事
-
-Unityとは異なり、エラーが発生した際にその原因箇所を特定するのが難しい環境だったため、慎重かつ保守的に開発を進めるようにしました。このアプローチにより、予期しないトラブルを最小限に抑えるよう努めました。
-
-
-大変だった所
-
-正直に言うと、C++を利用したDirectXの開発はこれが初めての経験であり、さらにC++で何かを作成すること自体も初めてでした。そのため、オブジェクト指向設計が十分に行われていなかった点が最も困難だった部分です。この経験を通じて、設計の重要性を改めて学ぶことができました。
-
-
-力をいれて作った部分
-
-最終的にソースコードは完全にオブジェクト指向を遵守することはできませんでしたが、ノイズフィルター、ビルボード、ソフトシャドウなど、さまざまな技術を実装しようと努力しました。これらの技術がどのように機能しているかに注目していただければ幸いです。
-
-
-参考にしたソースファイル
-
-正直に言うと、すべての技術のソースコードは例題ファイルのコードを参考にしました。しかし、それらを実際に動作させ、適切に配置し直したのは私自身のスキルによるものです。たとえば、例題ファイルのシャドウシェーダーはPhong Illuminationを完全にサポートしていなかったため、スペキュラ成分を追加するようにシェーダーを調整しました。また、ソフトシャドウを実現するためにシェーダーコードを修正するなど、自ら工夫を加えました。
-
-
-![image](https://github.com/namsy8471/DirectX11DemoForPortfolio_NSY/assets/31647755/bf59dafa-3dc4-4421-88ff-8e048d593696)
-
-ノイズフィルターを用いた火、テキストボックス、マウスカーソルの実装
-
-![image](https://github.com/namsy8471/DirectX11DemoForPortfolio_NSY/assets/31647755/f4b43db1-0b06-4a5e-a63b-c8b82e987963)
-
-ハイトマップを使用したTerrain、インスタンシング（2000個）された2Dモデル（草）とビルボード、フォン・イルミネーションモデル、影、Direct Inputを利用した移動およびカメラ移動を実装したシーンです。
-
-Video URL: https://www.youtube.com/watch?v=YtkRcS8QO4E
+## 🔗 Links
+- 🎥 **Video:** [YouTube](https://www.youtube.com/watch?v=YtkRcS8QO4E)  
+- 💻 **GitHub:** [github.com/namsy8471/DirectX11DemoForPortfolio_NSY](https://github.com/namsy8471/DirectX11DemoForPortfolio_NSY)
