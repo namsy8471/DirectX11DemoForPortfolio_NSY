@@ -3,28 +3,29 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "graphicsclass.h"
+#include "CollisionHelpers.h"
 
 GraphicsClass::GraphicsClass()
 {
-	m_D3D = 0;
-	m_Camera = 0;
+	m_D3D = nullptr;
+	m_Camera = nullptr;
 
 	m_Models.clear();
 
-	m_TextureShader = 0;
+	m_TextureShader = nullptr;
 	m_Crosshairs.clear();
 
-	m_Text = 0;
+	m_Text = nullptr;
 
-	m_Terrain = 0;
-	m_TerrainShader = 0;
+	m_Terrain = nullptr;
+	m_TerrainShader = nullptr;
 
-	m_Light = 0;
-	m_LightShader = 0;
+	m_Light = nullptr;
+	m_LightShader = nullptr;
 
-	m_RenderTexture = 0;
-	m_DepthShader = 0;
-	m_ShadowShader = 0;
+	m_RenderTexture = nullptr;
+	m_DepthShader = nullptr;
+	m_ShadowShader = nullptr;
 
 	wholeObj = 0;
 	wholePoly = 0;
@@ -39,8 +40,8 @@ GraphicsClass::GraphicsClass()
 	tex_Names[2] = { L"./data/11561_Turkey - Wild_female_v4_l1.dds" };
 	tex_Names[3] = { L"./data/horse.dds" };
 
-	m_SkyDome = 0;
-	m_ShadowShader = 0;
+	m_SkyDome = nullptr;
+	// m_ShadowShader already set above
 }
 
 
@@ -592,256 +593,129 @@ bool GraphicsClass::Initialize(int screenWidth, int screenHeight, HWND hwnd, HIN
 
 void GraphicsClass::Shutdown()
 {
+	// 공통 해제 유틸리티로 중복 제거
+	auto safeShutdownDelete = [](auto*& p) {
+		if (p) { p->Shutdown(); delete p; p = nullptr; }
+	};
+	auto safeDelete = [](auto*& p) {
+		if (p) { delete p; p = nullptr; }
+	};
+
 	// 단풍 쉐이더 객체를 해제합니다.
-	if (m_FoliageShader)
-	{
-		m_FoliageShader->Shutdown();
-		delete m_FoliageShader;
-		m_FoliageShader = 0;
-	}
+	safeShutdownDelete(m_FoliageShader);
 
 	// 단풍 객체를 해제합니다.
-	if (m_Foliage)
-	{
-		m_Foliage->Shutdown();
-		delete m_Foliage;
-		m_Foliage = 0;
-	}
+	safeShutdownDelete(m_Foliage);
 
-	for (auto crosshair : m_Crosshairs)
+	for (auto& crosshair : m_Crosshairs)
 	{
 		if (crosshair)
 		{
 			crosshair->Shutdown();
 			delete crosshair;
-			crosshair = 0;
+			crosshair = nullptr;
 		}
 	}
+	m_Crosshairs.clear();
 
 	// fire shader 객체를 해제한다.
-	if (m_FireShader)
-	{
-		m_FireShader->Shutdown();
-		delete m_FireShader;
-		m_FireShader = 0;
-	}
+	safeShutdownDelete(m_FireShader);
 
 	// 모델 객체를 해제합니다.
-	if (m_ModelForFire)
-	{
-		m_ModelForFire->Shutdown();
-		delete m_ModelForFire;
-		m_ModelForFire = 0;
-	}
+	safeShutdownDelete(m_ModelForFire);
 
 	// 비트맵 객체를 해제합니다.
-	if (m_MouseCursor)
-	{
-		m_MouseCursor->Shutdown();
-		delete m_MouseCursor;
-		m_MouseCursor = 0;
-	}
+	safeShutdownDelete(m_MouseCursor);
 
 	// Release the sound object.
-	if (m_Sound)
-	{
-		m_Sound->Shutdown();
-		delete m_Sound;
-		m_Sound = 0;
-	}
+	safeShutdownDelete(m_Sound);
 
 	// 입력 객체를 해제합니다.
-	if (m_Input)
-	{
-		m_Input->Shutdown();
-		delete m_Input;
-		m_Input = 0;
-	}
+	safeShutdownDelete(m_Input);
+
 	// 부드러운 그림자 쉐이더 객체를 해제한다.
-	if (m_SoftShadowShader)
-	{
-		m_SoftShadowShader->Shutdown();
-		delete m_SoftShadowShader;
-		m_SoftShadowShader = 0;
-	}
+	safeShutdownDelete(m_SoftShadowShader);
 
 	// 전체 화면 ortho window 객체를 해제합니다.
-	if (m_FullScreenWindow)
-	{
-		m_FullScreenWindow->Shutdown();
-		delete m_FullScreenWindow;
-		m_FullScreenWindow = 0;
-	}
+	safeShutdownDelete(m_FullScreenWindow);
 
 	// up 샘플 렌더를 텍스쳐 객체로 릴리즈한다.
-	if (m_UpSampleTexure)
-	{
-		m_UpSampleTexure->Shutdown();
-		delete m_UpSampleTexure;
-		m_UpSampleTexure = 0;
-	}
+	safeShutdownDelete(m_UpSampleTexure);
 
 	// 수직 블러 쉐이더 객체를 해제한다.
-	if (m_VerticalBlurShader)
-	{
-		m_VerticalBlurShader->Shutdown();
-		delete m_VerticalBlurShader;
-		m_VerticalBlurShader = 0;
-	}
+	safeShutdownDelete(m_VerticalBlurShader);
 
 	// 수직 블러 렌더를 텍스처 객체에 놓습니다.
-	if (m_VerticalBlurTexture)
-	{
-		m_VerticalBlurTexture->Shutdown();
-		delete m_VerticalBlurTexture;
-		m_VerticalBlurTexture = 0;
-	}
+	safeShutdownDelete(m_VerticalBlurTexture);
 
 	// 수평 블러 쉐이더 객체를 해제합니다.
-	if (m_HorizontalBlurShader)
-	{
-		m_HorizontalBlurShader->Shutdown();
-		delete m_HorizontalBlurShader;
-		m_HorizontalBlurShader = 0;
-	}
+	safeShutdownDelete(m_HorizontalBlurShader);
 
 	// 수평 블러 렌더를 텍스처 객체에 놓습니다.
-	if (m_HorizontalBlurTexture)
-	{
-		m_HorizontalBlurTexture->Shutdown();
-		delete m_HorizontalBlurTexture;
-		m_HorizontalBlurTexture = 0;
-	}
+	safeShutdownDelete(m_HorizontalBlurTexture);
 
 	// 작은 ortho 윈도우 객체를 놓습니다.
-	if (m_SmallWindow)
-	{
-		m_SmallWindow->Shutdown();
-		delete m_SmallWindow;
-		m_SmallWindow = 0;
-	}
+	safeShutdownDelete(m_SmallWindow);
 
 	// 다운 샘플 렌더를 텍스쳐 객체로 릴리즈한다.
-	if (m_DownSampleTexure)
-	{
-		m_DownSampleTexure->Shutdown();
-		delete m_DownSampleTexure;
-		m_DownSampleTexure = 0;
-	}
+	safeShutdownDelete(m_DownSampleTexure);
 
 	// 흑백 렌더링을 텍스처로 놓습니다.
-	if (m_BlackWhiteRenderTexture)
-	{
-		m_BlackWhiteRenderTexture->Shutdown();
-		delete m_BlackWhiteRenderTexture;
-		m_BlackWhiteRenderTexture = 0;
-	}
+	safeShutdownDelete(m_BlackWhiteRenderTexture);
 
 	// 스카이 돔 쉐이더 객체를 해제합니다.
-	if (m_SkyDomeShader)
-	{
-		m_SkyDomeShader->Shutdown();
-		delete m_SkyDomeShader;
-		m_SkyDomeShader = 0;
-	}
+	safeShutdownDelete(m_SkyDomeShader);
 
 	// 스카이 돔 객체를 해제합니다.
-	if (m_SkyDome)
-	{
-		m_SkyDome->Shutdown();
-		delete m_SkyDome;
-		m_SkyDome = 0;
-	}
+	safeShutdownDelete(m_SkyDome);
 
 	// 그림자 쉐이더 객체를 해제합니다.
-	if (m_ShadowShader)
-	{
-		m_ShadowShader->Shutdown();
-		delete m_ShadowShader;
-		m_ShadowShader = 0;
-	}
+	safeShutdownDelete(m_ShadowShader);
 
 	// 깊이 셰이더 개체를 해제합니다.
-	if (m_DepthShader)
-	{
-		m_DepthShader->Shutdown();
-		delete m_DepthShader;
-		m_DepthShader = 0;
-	}
+	safeShutdownDelete(m_DepthShader);
 
 	// 렌더 투 텍스쳐 객체를 해제합니다.
-	if (m_RenderTexture)
-	{
-		m_RenderTexture->Shutdown();
-		delete m_RenderTexture;
-		m_RenderTexture = 0;
-	}
+	safeShutdownDelete(m_RenderTexture);
 
 	// 조명 객체를 해제합니다.
-	if (m_Light)
-	{
-		delete m_Light;
-		m_Light = 0;
-	}
+	safeDelete(m_Light);
 
 	// 지형 쉐이더 객체를 해제합니다.
-	if (m_TerrainShader)
-	{
-		m_TerrainShader->Shutdown();
-		delete m_TerrainShader;
-		m_TerrainShader = 0;
-	}
+	safeShutdownDelete(m_TerrainShader);
 
 	// 지형 객체를 해제합니다.
-	if (m_Terrain)
-	{
-		m_Terrain->Shutdown();
-		delete m_Terrain;
-		m_Terrain = 0;
-	}
+	safeShutdownDelete(m_Terrain);
 
 	// Release the texture shader object.
-	if (m_TextureShader)
-	{
-		m_TextureShader->Shutdown();
-		delete m_TextureShader;
-		m_TextureShader = 0;
-	}
+	safeShutdownDelete(m_TextureShader);
 
 	for (int i = 0; i < MAX_OBJS; i++)
 	{
 		// Release the model objects.
-		if (m_Models[i])
+		if (i < static_cast<int>(m_Models.size()) && m_Models[i])
 		{
 			m_Models[i]->Shutdown();
 			delete m_Models[i];
-			m_Models[i] = 0;
+			m_Models[i] = nullptr;
 		}
 
 	}
+	m_Models.clear();
 
 	// Release the camera object.
-	if(m_Camera)
-	{
-		delete m_Camera;
-		m_Camera = 0;
-	}
+	safeDelete(m_Camera);
 
 	// Release the D3D object.
 	if(m_D3D)
 	{
 		m_D3D->Shutdown();
 		delete m_D3D;
-		m_D3D = 0;
+		m_D3D = nullptr;
 	}
 
 	// Release the light shader object.
-	if (m_LightShader)
-	{
-		m_LightShader->Shutdown();
-		delete m_LightShader;
-		m_LightShader = 0;
-	}
+	safeShutdownDelete(m_LightShader);
 
 	return;
 }
@@ -912,13 +786,27 @@ bool GraphicsClass::Frame(int fps, int cpu, float frameTime)
 
 	//빛의 위치를 ​​업데이트합니다.
 	m_Light->SetPosition(XMFLOAT3(lightPositionX, 10.0f, -5.0f));
-	//m_Light->SetPosition(m_Camera->GetPosition());
 
 	// 카메라 위치를 얻는다.
 	XMFLOAT3 cameraPosition = m_Camera->GetPosition();
 	
-	// 단풍에 대한 프레임 처리를 수행합니다.
-	result = m_Foliage->Frame(cameraPosition, m_D3D->GetDeviceContext(), frameTime * 0.01f);
+	// ✅ 카메라가 지형 높이를 따라가도록 설정
+	if (currentStage == StageEnum::Stage && m_Terrain)
+	{
+		// 지형에서 현재 카메라 X, Z 위치의 높이를 가져옴
+		float terrainHeight = m_Terrain->GetHeight(cameraPosition.x, cameraPosition.z);
+		
+		// 카메라가 지형 위에 떠있도록 오프셋 추가 (예: 2 유닛)
+		const float cameraHeightOffset = 2.0f;
+		float desiredCameraHeight = terrainHeight + cameraHeightOffset;
+		
+		// ✅ 카메라를 항상 지형 높이에 맞춤 (위아래 모두)
+		m_Camera->SetPositionY(desiredCameraHeight);
+		cameraPosition.y = desiredCameraHeight; // 로컬 변수도 업데이트
+	}
+	
+	// 단풍에 대한 프레임 처리를 수행합니다 (지형 객체 전달).
+	result = m_Foliage->Frame(cameraPosition, m_D3D->GetDeviceContext(), frameTime * 0.01f, m_Terrain);
 	if (!result)
 	{
 		return false;
@@ -1031,7 +919,6 @@ bool GraphicsClass::RenderSceneToTexture()
 	// 지형 버퍼를 렌더링 합니다.
 	m_Terrain->Render(m_D3D->GetDeviceContext());
 
-	m_Terrain->Render(m_D3D->GetDeviceContext());
 	bool result = m_DepthShader->Render(m_D3D->GetDeviceContext(), m_Terrain->GetIndexCount(), worldMatrix, lightViewMatrix, lightProjectionMatrix);
 	if (!result)
 	{
@@ -1052,7 +939,7 @@ bool GraphicsClass::RenderSceneToTexture()
 		worldMatrix *= XMMatrixTranslation(posX, posY, posZ);
 
 		m_Model->Render(m_D3D->GetDeviceContext());
-		bool result = m_DepthShader->Render(m_D3D->GetDeviceContext(), m_Model->GetIndexCount(), worldMatrix, lightViewMatrix, lightProjectionMatrix);
+		result = m_DepthShader->Render(m_D3D->GetDeviceContext(), m_Model->GetIndexCount(), worldMatrix, lightViewMatrix, lightProjectionMatrix);
 		if (!result)
 		{
 			return false;
@@ -1062,7 +949,7 @@ bool GraphicsClass::RenderSceneToTexture()
 	// 렌더링 대상을 원래의 백 버퍼로 다시 설정하고 렌더링에 대한 렌더링을 더 이상 다시 설정하지 않습니다.
 	m_D3D->SetBackBufferRenderTarget();
 
-	// 뷰포트를 원본으로 다시 설정합니다.
+	// 뷰포트를 원래대로 재설정
 	m_D3D->ResetViewport();
 
 	return true;
@@ -1165,12 +1052,12 @@ bool GraphicsClass::DownSampleTexture()
 	m_Camera->GetBaseViewMatrix(baseViewMatrix);
 
 	// 질감이 크기가 작기 때문에 렌더링에서 텍스처로 ortho 행렬을 가져옵니다. 
-	m_DownSampleTexure->GetOrthoMatrix(orthoMatrix);
+m_DownSampleTexure->GetOrthoMatrix(orthoMatrix);
 
 	// 모든 2D 렌더링을 시작하려면 Z 버퍼를 끕니다. 
 	m_D3D->TurnZBufferOff();
 
-	// 드로잉을 준비하기 위해 그래픽 파이프 라인에 작은 ortho window 버텍스와 인덱스 버퍼를 놓습니다. 
+	// 드로잉을 준비하기 위해 그래픽 파이프 라인에 작은 ortho window 버텍스와 인덱스 버퍼를 배치합니다. 
 	m_SmallWindow->Render(m_D3D->GetDeviceContext());
 
 	// 텍스처 쉐이더를 사용하여 작은 ortho 창을 렌더링하고 씬의 텍스처를 텍스처 리소스로 렌더링합니다. 
@@ -1202,7 +1089,7 @@ bool GraphicsClass::RenderHorizontalBlurToTexture()
 
 
 	// 수평 블러 쉐이더에서 사용될 float에 화면 폭을 저장합니다. 
-	screenSizeX = (float)(SHADOWMAP_WIDTH / 2);
+	screenSizeX = static_cast<float>(SHADOWMAP_WIDTH) / 2.0f;
 
 	// 렌더링 대상을 렌더링에 맞게 설정합니다. 
 	m_HorizontalBlurTexture->SetRenderTarget(m_D3D->GetDeviceContext());
@@ -1255,7 +1142,7 @@ bool GraphicsClass::RenderVerticalBlurToTexture()
 
 
 	// 수직 블러 셰이더에서 사용되는 부동 소수점에 화면 높이를 저장합니다. 
-	screenSizeY = (float)(SHADOWMAP_HEIGHT / 2);
+	screenSizeY = static_cast<float>(SHADOWMAP_HEIGHT) / 2.0f;
 
 	// 렌더링 대상을 렌더링에 맞게 설정합니다. 
 	m_VerticalBlurTexture->SetRenderTarget(m_D3D->GetDeviceContext());
@@ -1384,7 +1271,7 @@ bool GraphicsClass::Render(float frameTime)
 	// 세 가지 다른 노이즈 텍스처에 대해 세 가지 스크롤 속도를 설정합니다.
 	XMFLOAT3 scrollSpeeds = XMFLOAT3(1.3f, 2.1f, 2.3f);
 
-	// 세 개의 서로 다른 노이즈 옥타브 텍스처를 만드는 데 사용할 세 개의 스케일을 설정합니다.
+	// 세 개의 서로 같은 노이즈 옥타브 텍스처를 만드는 데 사용할 세 개의 스케일을 설정합니다.
 	XMFLOAT3 scales = XMFLOAT3(1.0f, 2.0f, 3.0f);
 
 	// 세 가지 다른 노이즈 텍스처에 대해 세 가지 다른 x 및 y 왜곡 인수를 설정합니다.
@@ -1451,7 +1338,7 @@ bool GraphicsClass::Render(float frameTime)
 				// Turn on the alpha blending before rendering the text.
 				m_D3D->TurnOnAlphaBlending();
 
-				// 입력 객체에서 마우스의 위치를 ​​가져옵니다.
+				// 입력 OBJECT에서 마우스의 위치를 ​​가져옵니다.
 				int mouseX = 0;
 				int mouseY = 0;
 				m_Input->GetMouseLocation(mouseX, mouseY);
@@ -1480,9 +1367,6 @@ bool GraphicsClass::Render(float frameTime)
 				m_D3D->TurnOffAlphaBlending();
 
 				// Turn the Z buffer back on now that all 2D rendering has completed.
-				m_D3D->TurnZBufferOn();
-
-				// Present the rendered scene to the screen.
 				m_D3D->EndScene();
 
 				return true;
@@ -1497,7 +1381,7 @@ bool GraphicsClass::Render(float frameTime)
 					return false;
 				}
 
-				// 다음으로 그림자가있는 장면을 흑백으로 렌더링합니다. 
+				// 다음으로 그림자가 있는 장면을 흑백으로 렌더링합니다. 
 				result = RenderBlackAndWhiteShadows();
 				if (!result)
 				{
@@ -1587,8 +1471,8 @@ bool GraphicsClass::Render(float frameTime)
 				m_Terrain->Render(m_D3D->GetDeviceContext());
 
 				result = m_SoftShadowShader->Render(m_D3D->GetDeviceContext(), m_Terrain->GetIndexCount(), terrainMatrix, viewMatrix, projectionMatrix,
-					m_Terrain->GetTexture(), m_UpSampleTexure->GetShaderResourceView(), m_Light->GetPosition(),
-					m_Light->GetAmbientColor(), m_Light->GetDiffuseColor(), m_Light->GetDirection(), m_Light->GetSpecularColor(), m_Light->GetSpecularPower());
+					m_Terrain->GetTexture(), m_UpSampleTexure->GetShaderResourceView(), m_Light->GetDirection(),
+					m_Light->GetAmbientColor(), m_Light->GetDiffuseColor(), m_Light->GetPosition(), m_Light->GetSpecularColor(), m_Light->GetSpecularPower());
 				if (!result)
 				{
 					return false;
@@ -1597,11 +1481,12 @@ bool GraphicsClass::Render(float frameTime)
 
 				m_D3D->GetWorldMatrix(worldMatrix);
 
+				// ✅ 깊이 테스트 ON, 깊이 쓰기 OFF로 설정
+				// 지형에 의해 가려진 풀은 렌더링되지 않지만, 풀끼리는 올바르게 블렌딩됨
+				m_D3D->EnableDepthTestingWithoutWrites();
+
 				m_Foliage->GetPosition(posX, posY, posZ);
 				worldMatrix = XMMatrixTranslation(posX, posY, posZ);
-
-				// 깊이 버퍼 끄기
-				m_D3D->TurnZBufferOff();
 
 				// 투명 켜기
 				m_D3D->TurnOnAlphaBlending();
@@ -1613,8 +1498,9 @@ bool GraphicsClass::Render(float frameTime)
 				// 투명 끄기
 				m_D3D->TurnOffAlphaBlending();
 
-				// 2D 렌더링이 끝나면 깊이 버퍼 다시 켜기
-				m_D3D->TurnZBufferOn();
+				// 일반 깊이 스텐실 상태로 복원
+				m_D3D->DisableDepthTestingWithoutWrites();
+	
 
 
 				// Put the model vertex and index buffers on the graphics pipeline to prepare them for drawing.
@@ -1634,9 +1520,21 @@ bool GraphicsClass::Render(float frameTime)
 
 					m_Model->Render(m_D3D->GetDeviceContext());
 
-					result = m_SoftShadowShader->Render(m_D3D->GetDeviceContext(), m_Model->GetIndexCount(), worldMatrix, viewMatrix, projectionMatrix,
-						m_Model->GetTexture(), m_UpSampleTexure->GetShaderResourceView(), m_Light->GetDirection(),
-						m_Light->GetAmbientColor(), m_Light->GetDiffuseColor(), m_Light->GetPosition(), m_Light->GetSpecularColor(), m_Light->GetSpecularPower());
+					// Fix: pass light position and direction in the correct order
+					result = m_SoftShadowShader->Render(
+						m_D3D->GetDeviceContext(),
+						m_Model->GetIndexCount(),
+						worldMatrix,
+						viewMatrix,
+						projectionMatrix,
+						m_Model->GetTexture(),
+						m_UpSampleTexure->GetShaderResourceView(),
+						m_Light->GetDirection(),
+						m_Light->GetAmbientColor(),
+						m_Light->GetDiffuseColor(),
+						m_Light->GetPosition(),
+						m_Light->GetSpecularColor(),
+						m_Light->GetSpecularPower());
 					if (!result)
 					{
 						return false;
@@ -1712,76 +1610,69 @@ CameraClass* GraphicsClass::GetCam()
 
 void GraphicsClass::TestIntersection()
 {
-	XMMATRIX projectionMatrix, viewMatrix, inverseViewMatrix, worldMatrix, translateMatrix, inverseWorldMatrix;
-	XMFLOAT3 direction, origin, rayOrigin, rayDirection;
+	XMMATRIX projectionMatrix, viewMatrix;
+	XMFLOAT3 rayOrigin, rayDirection;
 
-	// 마우스 커서 좌표를 -1에서 +1 범위로 이동합니다
-	float pointX = ((2.0f * (float)m_screenWidth / 2) / (float)m_screenWidth) - 1.0f;
-	float pointY = (((2.0f * (float)m_screenHeight / 2) / (float)m_screenHeight) - 1.0f) * -1.0f;
+	// 마우스 커서 좌표를 -1에서 +1 범위로 이동 (화면 중앙 기준)
+	float pointX = ((2.0f * static_cast<float>(m_screenWidth) / 2) / static_cast<float>(m_screenWidth)) - 1.0f;
+	float pointY = (((2.0f * static_cast<float>(m_screenHeight) / 2) / static_cast<float>(m_screenHeight)) - 1.0f) * -1.0f;
 
-	// 뷰포트의 종횡비를 고려하여 투영 행렬을 사용하여 점을 조정합니다
+	// 투영 행렬을 가져옴
 	m_D3D->GetProjectionMatrix(projectionMatrix);
 
-	XMFLOAT3X3 projectionMatrix4;
-	XMStoreFloat3x3(&projectionMatrix4, projectionMatrix);
+	// 투영 행렬의 역행렬을 사용하여 뷰 공간으로 변환
+	XMMATRIX invProjection = XMMatrixInverse(nullptr, projectionMatrix);
+	XMVECTOR nearPoint = XMVectorSet(pointX, pointY, 0.0f, 1.0f);
+	XMVECTOR farPoint = XMVectorSet(pointX, pointY, 1.0f, 1.0f);
 
-	pointX = pointX / projectionMatrix4._11;
-	pointY = pointY / projectionMatrix4._22;
+	nearPoint = XMVector3TransformCoord(nearPoint, invProjection);
+	farPoint = XMVector3TransformCoord(farPoint, invProjection);
 
-	// 뷰 행렬의 역함수를 구합니다.
+	// 뷰 행렬의 역행렬을 구함
 	m_Camera->GetViewMatrix(viewMatrix);
-	inverseViewMatrix = XMMatrixInverse(nullptr, viewMatrix);
+	XMMATRIX invView = XMMatrixInverse(nullptr, viewMatrix);
 
-	XMFLOAT3X3 inverseViewMatrix4;
-	XMStoreFloat3x3(&inverseViewMatrix4, inverseViewMatrix);
+	// 월드 공간으로 변환
+	nearPoint = XMVector3TransformCoord(nearPoint, invView);
+	farPoint = XMVector3TransformCoord(farPoint, invView);
 
-	// 뷰 공간에서 피킹 레이의 방향을 계산합니다.
-	direction.x = (pointX * inverseViewMatrix4._11) + (pointY * inverseViewMatrix4._21) + inverseViewMatrix4._31;
-	direction.y = (pointX * inverseViewMatrix4._12) + (pointY * inverseViewMatrix4._22) + inverseViewMatrix4._32;
-	direction.z = (pointX * inverseViewMatrix4._13) + (pointY * inverseViewMatrix4._23) + inverseViewMatrix4._33;
+	// Ray 원점과 방향 계산
+	XMStoreFloat3(&rayOrigin, nearPoint);
+	XMVECTOR direction = XMVector3Normalize(farPoint - nearPoint);
+	XMStoreFloat3(&rayDirection, direction);
 
-	// 카메라의 위치 인 picking ray의 원점을 가져옵니다.
-	origin = m_Camera->GetPosition();
+	// 각 모델과 충돌 검사
+	float closestDistance = FLT_MAX;
+	int hitModelIndex = -1;
 
-	for (int i = 0; i < m_Models.size(); i++) {
-		// 세계 행렬을 가져와 구의 위치로 변환합니다.
-		m_D3D->GetWorldMatrix(worldMatrix);
-		
-		float posX, posY, posZ;
-		m_Models[i]->GetPosition(posX, posY, posZ);
+	for (int i = 0; i < static_cast<int>(m_Models.size()); i++)
+	{
+		if (!m_Models[i]->isAlive()) continue;
 
-		translateMatrix = XMMatrixTranslation(posX, posY, posZ);
-		worldMatrix = XMMatrixMultiply(worldMatrix, translateMatrix);
+		// 월드 공간 AABB 가져오기
+		CollisionHelpers::AABB worldAABB = m_Models[i]->GetWorldAABB();
 
-		// 이제 번역 된 행렬의 역함수를 구하십시오.
-		inverseWorldMatrix = XMMatrixInverse(nullptr, worldMatrix);
-
-		// 이제 광선 원점과 광선 방향을 뷰 공간에서 월드 공간으로 변환합니다.
-		XMStoreFloat3(&rayOrigin, XMVector3TransformCoord(XMVectorSet(origin.x, origin.y, origin.z, 0.0f), inverseWorldMatrix));
-		XMStoreFloat3(&direction, XMVector3TransformNormal(XMVectorSet(direction.x, direction.y, direction.z, 0.0f), inverseWorldMatrix));
-
-		// 광선 방향을 표준화합니다.
-		XMStoreFloat3(&rayDirection, XMVector3Normalize(XMVectorSet(direction.x, direction.y, direction.z, 0.0f)));
-
-		// 이제 광선 구 교차 테스트를 수행하십시오.
-		if (RaySphereIntersect(rayOrigin, rayDirection, 1.0f) == true)
+		// Ray-AABB 교차 테스트
+		float distance;
+		if (CollisionHelpers::RayAABBIntersect(rayOrigin, rayDirection, worldAABB, &distance))
 		{
-			// 교차하는 경우 화면에 표시되는 텍스트 문자열에서 교차로를 "yes"로 설정합니다.
-			if (m_Models[i]->isAlive()) {
-				m_Models[i]->SetDie();
-				wholeObj--;
-				wholePoly -= m_Models[i]->CountPolygons();
+			// 가장 가까운 모델 찾기
+			if (distance < closestDistance && distance >= 0.0f)
+			{
+				closestDistance = distance;
+				hitModelIndex = i;
 			}
-			break;
-		}
-		else
-		{
-			// 그렇지 않으면 "No"로 교차를 설정하십시오.
-
 		}
 	}
-}
 
+	// 충돌한 모델 처리
+	if (hitModelIndex >= 0)
+	{
+		m_Models[hitModelIndex]->SetDie();
+		wholeObj--;
+		wholePoly -= m_Models[hitModelIndex]->CountPolygons();
+	}
+}
 
 bool GraphicsClass::RaySphereIntersect(XMFLOAT3 rayOrigin, XMFLOAT3 rayDirection, float radius)
 {

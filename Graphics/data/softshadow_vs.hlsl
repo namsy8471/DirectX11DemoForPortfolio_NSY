@@ -38,9 +38,10 @@ struct PixelInputType
 {
     float4 position : SV_POSITION;
     float2 tex : TEXCOORD0;
-	float3 normal : NORMAL;
-    float4 viewPosition : TEXCOORD1;
-	float3 lightPos : TEXCOORD2;
+	float3 normal : NORMAL;          // view-space normal
+    float4 viewPosition : TEXCOORD1; // clip-space position for screen-space sampling
+	float3 lightPos : TEXCOORD2;     // view-space light direction
+	float3 viewDir : TEXCOORD3;      // view-space view direction
 };
 
 
@@ -54,31 +55,30 @@ PixelInputType SoftShadowVertexShader(VertexInputType input)
 	// 적절한 행렬 계산을 위해 위치 벡터를 4 단위로 변경합니다.
     input.position.w = 1.0f;
 
-	// 월드, 뷰 및 투영 행렬에 대한 정점의 위치를 ​​계산합니다.
-    output.position = mul(input.position, worldMatrix);
-    output.position = mul(output.position, viewMatrix);
-    output.position = mul(output.position, projectionMatrix);
-    
-	// 카메라가 본 vertice의 위치를 ​​별도의 변수에 저장합니다.
-    output.viewPosition = output.position;
+	// World and view positions
+    float4 worldPosition = mul(input.position, worldMatrix);
+    float4 viewPos = mul(worldPosition, viewMatrix);
 
-	// 픽셀 쉐이더의 텍스처 좌표를 저장한다.
-    output.tex = input.tex;
-    
-	// 월드 행렬에 대해서만 법선 벡터를 계산합니다.
-    output.normal = mul(input.normal, (float3x3)worldMatrix);
+    // Output SV_POSITION (clip space) and also forward the same as TEXCOORD for sampling
+    float4 clipPosition = mul(viewPos, projectionMatrix);
+    output.position = clipPosition;
+    output.viewPosition = clipPosition;
 	
-    // 법선 벡터를 정규화합니다.
-    output.normal = normalize(output.normal);
+	// Transform normal to view space (approximate: world then view, assuming no non-uniform scale)
+    float3 worldNormal = mul(input.normal, (float3x3)worldMatrix);
+    float3 viewNormal = mul(worldNormal, (float3x3)viewMatrix);
+	output.normal = normalize(viewNormal);
 
-    // 세계의 정점 위치를 계산합니다.
-	float4 worldPosition = mul(input.position, worldMatrix);
+    // Compute light direction in view space
+    float3 worldLightDir = lightPosition.xyz - worldPosition.xyz;
+    float3 viewLightDir = mul(worldLightDir, (float3x3)viewMatrix);
+    output.lightPos = normalize(viewLightDir);
 
-    // 빛의 위치와 세계의 정점 위치를 기반으로 빛의 위치를 ​​결정합니다.
-    output.lightPos = lightPosition.xyz - worldPosition.xyz;
+    // View direction (camera at (0,0,0) in view space)
+    output.viewDir = normalize(-viewPos.xyz);
 
-    // 라이트 위치 벡터를 정규화합니다.
-    output.lightPos = normalize(output.lightPos);
+	// Pass through texcoords
+	output.tex = input.tex;
 
 	return output;
 }

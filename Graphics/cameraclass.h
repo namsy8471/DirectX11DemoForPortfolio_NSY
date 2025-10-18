@@ -26,6 +26,8 @@ public:
 
 	void SetPosition(float, float, float);
 	void SetRotation(float, float, float);
+	
+	void SetPositionY(float y); // 새로 추가된 함수: Y 위치만 업데이트 (지형 높이 추적용)
 
 	void SetCamYaw(float);
 	void SetCamPitch(float);

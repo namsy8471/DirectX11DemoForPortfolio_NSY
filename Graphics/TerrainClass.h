@@ -43,6 +43,9 @@ public:
 
 	int GetIndexCount();
 	ID3D11ShaderResourceView* GetTexture();
+	
+	// 지형 높이 가져오기 메서드 추가
+	float GetHeight(float x, float z);
 
 private:
 	bool LoadHeightMap(const char*);

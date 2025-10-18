@@ -20,6 +20,7 @@ using namespace DirectX;
 #include <fstream>
 #include <atlstr.h>
 #include "textureclass.h"
+#include "CollisionHelpers.h"
 
 using namespace std;
 
@@ -69,9 +70,12 @@ public:
 	int CountMeshes();
 
 	bool isAlive() { return alive; }
-	void SetDie() {
-		alive = false;
-	}
+	void SetDie() { alive = false; }
+
+	// AABB °ü·Ã ¸Þ¼­µå
+	CollisionHelpers::AABB GetLocalAABB() const { return m_localAABB; }
+	CollisionHelpers::AABB GetWorldAABB() const;
+	XMMATRIX GetWorldMatrix() const;
 
 private:
 	bool InitializeBuffers(HWND, ID3D11Device*);
@@ -98,7 +102,10 @@ private:
 
 	XMFLOAT3 m_position = XMFLOAT3(0.0f, 0.0f, 0.0f);
 	XMFLOAT3 m_rotation = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	XMFLOAT3 m_scale = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	XMFLOAT3 m_scale = XMFLOAT3(1.0f, 1.0f, 1.0f);
+
+	// Local space AABB (¸ðµ¨ ÁÂÇ¥°è)
+	CollisionHelpers::AABB m_localAABB;
 };
 
 #endif

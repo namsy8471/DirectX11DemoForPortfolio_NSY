@@ -8,6 +8,8 @@ LightClass::LightClass()
 	m_diffuseColor = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 	m_lookAt = XMFLOAT3(0.0f, 0.0f, 0.0f);
 	m_position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	m_specularColor = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	m_specularPower = 0.0f;
 }
 
 
@@ -47,9 +49,9 @@ void LightClass::SetPosition(XMFLOAT3 position)
 	m_position = position;
 }
 
-void LightClass::SetLookAt(XMFLOAT3 direction)
+void LightClass::SetLookAt(XMFLOAT3 lookAt)
 {
-	m_lookAt = direction;
+	m_lookAt = lookAt;
 }
 
 
@@ -66,7 +68,14 @@ XMFLOAT4 LightClass::GetDiffuseColor()
 
 XMFLOAT3 LightClass::GetDirection()
 {
-	return m_lookAt;
+	// BUG FIX: Calculate direction from position to lookAt and normalize
+	XMVECTOR posVec = XMLoadFloat3(&m_position);
+	XMVECTOR lookAtVec = XMLoadFloat3(&m_lookAt);
+	XMVECTOR dirVec = XMVector3Normalize(lookAtVec - posVec);
+	
+	XMFLOAT3 direction;
+	XMStoreFloat3(&direction, dirVec);
+	return direction;
 }
 
 XMFLOAT4 LightClass::GetSpecularColor()
@@ -81,12 +90,12 @@ float LightClass::GetSpecularPower()
 
 XMFLOAT3 LightClass::GetPosition()
 {
-	return XMFLOAT3(m_position.x, m_position.y, m_position.z);
+	return m_position;
 }
 
 void LightClass::GenerateViewMatrix()
 {
-	// 위쪽을 가리키는 벡터를 설정합니다.
+	// 위로 향하는 벡터를 만듭니다.
 	XMFLOAT3 up = XMFLOAT3(0.0f, 1.0f, 0.0f);
 
 	XMVECTOR upVector = XMLoadFloat3(&up);
@@ -100,11 +109,11 @@ void LightClass::GenerateViewMatrix()
 
 void LightClass::GenerateProjectionMatrix(float screenDepth, float screenNear)
 {
-	// 정사각형 광원에 대한 시야 및 화면 비율을 설정합니다.
+	// 정사각형 조명을 위해 시야각 및 화면 비율을 설정합니다.
 	float fieldOfView = (float)XM_PI / 2.0f;
 	float screenAspect = 1.0f;
 
-	// 빛의 투영 행렬을 만듭니다.
+	// 조명 투영 행렬을 만듭니다.
 	m_projectionMatrix = XMMatrixPerspectiveFovLH(fieldOfView, screenAspect, screenNear, screenDepth);
 }
 

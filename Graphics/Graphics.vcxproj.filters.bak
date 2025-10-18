@@ -159,15 +159,6 @@
     <ClInclude Include="IMGUIManager.h">
       <Filter>IMGUI</Filter>
     </ClInclude>
-    <ClInclude Include="D3DHelpers.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="DXGIHelpers.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="CollisionHelpers.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cameraclass.cpp">
@@ -328,7 +319,6 @@
     <None Include="data\light.vs">
       <Filter>리소스 파일</Filter>
     </None>
-    <None Include="Graphics.vcxproj.filters.new" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="data\terrain_ps.hlsl">

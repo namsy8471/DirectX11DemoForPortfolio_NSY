@@ -39,6 +39,13 @@ void CameraClass::SetPosition(float x, float y, float z)
 	m_position.z = z;
 }
 
+// ✅ 새로운 메서드: Y 위치만 업데이트 (지형 높이 추적용)
+void CameraClass::SetPositionY(float y)
+{
+	m_position.y = y;
+	// camPosition의 Y 값도 직접 업데이트
+	camPosition = XMVectorSetY(camPosition, y);
+}
 
 void CameraClass::SetRotation(float x, float y, float z)
 {

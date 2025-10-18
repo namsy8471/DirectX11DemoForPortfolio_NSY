@@ -2,6 +2,7 @@
 
 
 class TextureClass;
+class TerrainClass;  // 전방 선언 추가
 
 
 class FoliageClass
@@ -33,7 +34,7 @@ public:
 	bool Initialize(ID3D11Device*, const WCHAR*, int);
 	void Shutdown();
 	void Render(ID3D11DeviceContext*);
-	bool Frame(XMFLOAT3, ID3D11DeviceContext*, float);
+	bool Frame(XMFLOAT3, ID3D11DeviceContext*, float, TerrainClass*);  // 지형 파라미터 추가
 
 	int GetVertexCount();
 	int GetInstanceCount();

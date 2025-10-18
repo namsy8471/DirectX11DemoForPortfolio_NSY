@@ -6,9 +6,9 @@
 
 BitmapClass::BitmapClass()
 {
-	m_vertexBuffer = 0;
-	m_indexBuffer = 0;
-	m_Texture = 0;
+	m_vertexBuffer = nullptr;
+	m_indexBuffer = nullptr;
+	m_Texture = nullptr;
 	m_position = XMFLOAT3(.0f, .0f, .0f);
 }
 
@@ -164,12 +164,12 @@ bool BitmapClass::InitializeBuffers(ID3D11Device* device)
 	// Load the index array with data.
 	for(i=0; i<m_indexCount; i++)
 	{
-		indices[i] = i;
+		indices[i] = static_cast<unsigned long>(i);
 	}
 
 	// Set up the description of the static vertex buffer.
     vertexBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-    vertexBufferDesc.ByteWidth = sizeof(VertexType) * m_vertexCount;
+    vertexBufferDesc.ByteWidth = static_cast<UINT>(sizeof(VertexType) * m_vertexCount);
     vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     vertexBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
     vertexBufferDesc.MiscFlags = 0;
@@ -189,7 +189,7 @@ bool BitmapClass::InitializeBuffers(ID3D11Device* device)
 
 	// Set up the description of the static index buffer.
     indexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-    indexBufferDesc.ByteWidth = sizeof(unsigned long) * m_indexCount;
+    indexBufferDesc.ByteWidth = static_cast<UINT>(sizeof(unsigned long) * m_indexCount);
     indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
     indexBufferDesc.CPUAccessFlags = 0;
     indexBufferDesc.MiscFlags = 0;
@@ -209,10 +209,10 @@ bool BitmapClass::InitializeBuffers(ID3D11Device* device)
 
 	// Release the arrays now that the vertex and index buffers have been created and loaded.
 	delete [] vertices;
-	vertices = 0;
+	vertices = nullptr;
 
 	delete [] indices;
-	indices = 0;
+	indices = nullptr;
 
 	return true;
 }
@@ -224,14 +224,14 @@ void BitmapClass::ShutdownBuffers()
 	if(m_indexBuffer)
 	{
 		m_indexBuffer->Release();
-		m_indexBuffer = 0;
+		m_indexBuffer = nullptr;
 	}
 
 	// Release the vertex buffer.
 	if(m_vertexBuffer)
 	{
 		m_vertexBuffer->Release();
-		m_vertexBuffer = 0;
+		m_vertexBuffer = nullptr;
 	}
 
 	return;
@@ -259,16 +259,16 @@ bool BitmapClass::UpdateBuffers(ID3D11DeviceContext* deviceContext, int position
 	m_previousPosY = positionY;
 
 	// Calculate the screen coordinates of the left side of the bitmap.
-	left = (float)((m_screenWidth / 2) * -1) + (float)positionX;
+	left = static_cast<float>((m_screenWidth / 2) * -1) + static_cast<float>(positionX);
 
 	// Calculate the screen coordinates of the right side of the bitmap.
-	right = left + (float)m_bitmapWidth;
+	right = left + static_cast<float>(m_bitmapWidth);
 
 	// Calculate the screen coordinates of the top of the bitmap.
-	top = (float)(m_screenHeight / 2) - (float)positionY;
+	top = static_cast<float>(m_screenHeight / 2) - static_cast<float>(positionY);
 
 	// Calculate the screen coordinates of the bottom of the bitmap.
-	bottom = top - (float)m_bitmapHeight;
+	bottom = top - static_cast<float>(m_bitmapHeight);
 
 	// Create the vertex array.
 	vertices = new VertexType[m_vertexCount];
@@ -306,17 +306,17 @@ bool BitmapClass::UpdateBuffers(ID3D11DeviceContext* deviceContext, int position
 	}
 
 	// Get a pointer to the data in the vertex buffer.
-	verticesPtr = (VertexType*)mappedResource.pData;
+	verticesPtr = static_cast<VertexType*>(mappedResource.pData);
 
 	// Copy the data into the vertex buffer.
-	memcpy(verticesPtr, (void*)vertices, (sizeof(VertexType) * m_vertexCount));
+	memcpy(verticesPtr, static_cast<void*>(vertices), (sizeof(VertexType) * m_vertexCount));
 
 	// Unlock the vertex buffer.
 	deviceContext->Unmap(m_vertexBuffer, 0);
 
 	// Release the vertex array as it is no longer needed.
 	delete [] vertices;
-	vertices = 0;
+	vertices = nullptr;
 
 	return true;
 }
@@ -375,7 +375,7 @@ void BitmapClass::ReleaseTexture()
 	{
 		m_Texture->Shutdown();
 		delete m_Texture;
-		m_Texture = 0;
+		m_Texture = nullptr;
 	}
 
 	return;

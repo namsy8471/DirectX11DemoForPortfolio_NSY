@@ -51,7 +51,7 @@ public:
 
 	void TurnZBufferOn();
 	void TurnZBufferOff();
-
+	
 	void TurnOnAlphaBlending();
 	void TurnOffAlphaBlending();
 
@@ -60,6 +60,14 @@ public:
 
 	void SetBackBufferRenderTarget();
 	void ResetViewport();
+	
+	// 투명 객체용 깊이 스텐실 상태 (깊이 테스트 ON, 깊이 쓰기 OFF)
+	void EnableDepthTestingWithoutWrites();
+	void DisableDepthTestingWithoutWrites();
+
+private:
+	// 공통 블렌딩 상태 설정 유틸리티로 중복 제거
+	void SetBlendState(ID3D11BlendState* state);
 
 private:
 	bool m_vsync_enabled;
@@ -82,6 +90,7 @@ private:
 	D3D11_VIEWPORT m_viewport;
 
 	ID3D11DepthStencilState* m_depthDisabledStencilState;
+	ID3D11DepthStencilState* m_depthTestNoWriteState = nullptr;  // 깊이 테스트 ON, 쓰기 OFF
 
 	ID3D11BlendState* m_alphaEnableBlendingState;
 	ID3D11BlendState* m_alphaDisableBlendingState;

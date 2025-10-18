@@ -251,6 +251,9 @@ bool ModelClass::LoadModel(CString filename, UINT flag)
 		m_indices[i * 3 + 2] = face.mIndices[2];
 	}
 
+	// Calculate local AABB from vertices
+	m_localAABB = CollisionHelpers::CalculateAABB(m_vertices, m_vertexCount);
+
 	return true;
 }
 
@@ -344,4 +347,20 @@ void ModelClass::GetScale(float& x, float& y, float& z)
 	x = m_scale.x;
 	y = m_scale.y;
 	z = m_scale.z;
+}
+
+XMMATRIX ModelClass::GetWorldMatrix() const
+{
+	// 월드 변환 행렬 생성 (Scale * Rotation * Translation)
+	XMMATRIX scaleMatrix = XMMatrixScaling(m_scale.x, m_scale.y, m_scale.z);
+	XMMATRIX rotationMatrix = XMMatrixRotationRollPitchYaw(m_rotation.x, m_rotation.y, m_rotation.z);
+	XMMATRIX translationMatrix = XMMatrixTranslation(m_position.x, m_position.y, m_position.z);
+
+	return scaleMatrix * rotationMatrix * translationMatrix;
+}
+
+CollisionHelpers::AABB ModelClass::GetWorldAABB() const
+{
+	// Local AABB를 월드 공간으로 변환
+	return m_localAABB.Transform(GetWorldMatrix());
 }

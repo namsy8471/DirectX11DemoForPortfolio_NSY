@@ -6,8 +6,8 @@
 
 FontClass::FontClass()
 {
-	m_Font = 0;
-	m_Texture = 0;
+	m_Font = nullptr;
+	m_Texture = nullptr;
 }
 
 
@@ -109,7 +109,7 @@ void FontClass::ReleaseFontData()
 	if(m_Font)
 	{
 		delete [] m_Font;
-		m_Font = 0;
+		m_Font = nullptr;
 	}
 
 	return;
@@ -146,7 +146,7 @@ void FontClass::ReleaseTexture()
 	{
 		m_Texture->Shutdown();
 		delete m_Texture;
-		m_Texture = 0;
+		m_Texture = nullptr;
 	}
 
 	return;
@@ -161,23 +161,14 @@ ID3D11ShaderResourceView* FontClass::GetTexture()
 
 void FontClass::BuildVertexArray(void* vertices, const char* sentence, float drawX, float drawY)
 {
-	VertexType* vertexPtr;
-	int numLetters, index, i, letter;
-
-
-	// Coerce the input vertices into a VertexType structure.
-	vertexPtr = (VertexType*)vertices;
-
-	// Get the number of letters in the sentence.
-	numLetters = (int)strlen(sentence);
-
-	// Initialize the index to the vertex array.
-	index = 0;
+	auto* vertexPtr = static_cast<VertexType*>(vertices);
+	const int numLetters = static_cast<int>(strlen(sentence));
+	int index = 0;
 
 	// Draw each letter onto a quad.
-	for(i=0; i<numLetters; i++)
+	for(int i=0; i<numLetters; i++)
 	{
-		letter = ((int)sentence[i]) - 32;
+		const int letter = static_cast<int>(sentence[i]) - 32;
 
 		// If the letter is a space then just move over three pixels.
 		if(letter == 0)
