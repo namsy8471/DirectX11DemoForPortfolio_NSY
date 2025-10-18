@@ -10,7 +10,7 @@ D3DClass::D3DClass()
 {
 	m_vsync_enabled = false;
 	m_videoCardMemory = 0;
-	// ¾ÈÀüÇÑ ÃÊ±âÈ­: ¹è¿­ ÀüÃ¼¸¦ 0À¸·Î ÃÊ±âÈ­
+	// ì•ˆì „í•œ ì´ˆê¸°í™”: ë°°ì—´ ì „ì²´ë¥¼ 0ìœ¼ë¡œ ì´ˆê¸°í™”
 	memset(m_videoCardDescription, 0, sizeof(m_videoCardDescription));
 	
 	m_swapChain = nullptr;
@@ -338,25 +338,8 @@ bool D3DClass::Initialize(int screenWidth, int screenHeight, bool vsync, HWND hw
 	// Now set the rasterizer state.
 	m_deviceContext->RSSetState(m_rasterState);
 	
-<<<<<<< HEAD
 	// Create no-culling rasterizer state
 	if (!D3DHelpers::CreateRasterizerState(m_device, D3D11_CULL_NONE, &m_rasterStateNoCulling))
-=======
-	// ë°°ë©´ ì»¬ë§ì„ í•´ì œí•˜ëŠ” ëž˜ìŠ¤í„° êµ¬ì¡°ì²´ë¥¼ ì„¤ì •í•©ë‹ˆë‹¤.
-	rasterDesc.AntialiasedLineEnable = false;
-	rasterDesc.CullMode = D3D11_CULL_NONE;
-	rasterDesc.DepthBias = 0;
-	rasterDesc.DepthBiasClamp = 0.0f;
-	rasterDesc.DepthClipEnable = true;
-	rasterDesc.FillMode = D3D11_FILL_SOLID;
-	rasterDesc.FrontCounterClockwise = false;
-	rasterDesc.MultisampleEnable = false;
-	rasterDesc.ScissorEnable = false;
-	rasterDesc.SlopeScaledDepthBias = 0.0f;
-
-	// ë„ë ¤ë‚´ì§€ ì•ŠëŠ” ëž˜ìŠ¤í„° ë¼ì´ì € ìƒíƒœë¥¼ ë§Œë“­ë‹ˆë‹¤.
-	if (FAILED(m_device->CreateRasterizerState(&rasterDesc, &m_rasterStateNoCulling)))
->>>>>>> f569692fda4064b72833f8f7de8f4b631805e426
 	{
 		return false;
 	}
@@ -391,21 +374,23 @@ bool D3DClass::Initialize(int screenWidth, int screenHeight, bool vsync, HWND hw
 		return false;
 	}
 
-<<<<<<< HEAD
 	if (!D3DHelpers::CreateDepthStencilState(m_device, &m_depthDisabledStencilState, FALSE, D3D11_DEPTH_WRITE_MASK_ALL))
 	{
 		return false;
 	}
 	
-	// Åõ¸í °´Ã¼¿ë ±íÀÌ ½ºÅÙ½Ç »óÅÂ »ý¼º (±íÀÌ Å×½ºÆ® ON, ±íÀÌ ¾²±â OFF)
+	// íˆ¬ëª… ê°ì²´ìš© ê¹Šì´ ìŠ¤í…ì‹¤ ìƒíƒœ ìƒì„± (ê¹Šì´ í…ŒìŠ¤íŠ¸ ON, ê¹Šì´ ì“°ê¸° OFF)
 	if (!D3DHelpers::CreateDepthStencilState(m_device, &m_depthTestNoWriteState, TRUE, D3D11_DEPTH_WRITE_MASK_ZERO))
-=======
+	{
+		return false;
+	}
+
 	// Clear the blend state description.
 	ZeroMemory(&blendStateDescription, sizeof(D3D11_BLEND_DESC));
 
 	// Create an alpha enabled blend state description.
 	blendStateDescription.RenderTarget[0].BlendEnable = TRUE;
-	blendStateDescription.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+	blendStateDescription.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
 	blendStateDescription.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
 	blendStateDescription.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
 	blendStateDescription.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
@@ -416,13 +401,6 @@ bool D3DClass::Initialize(int screenWidth, int screenHeight, bool vsync, HWND hw
 	// Create the blend state using the description.
 	result = m_device->CreateBlendState(&blendStateDescription, &m_alphaEnableBlendingState);
 	if (FAILED(result))
->>>>>>> f569692fda4064b72833f8f7de8f4b631805e426
-	{
-		return false;
-	}
-
-	// Create blend states using helper
-	if (!D3DHelpers::CreateBlendState(m_device, &m_alphaEnableBlendingState, TRUE))
 	{
 		return false;
 	}
@@ -564,7 +542,7 @@ void D3DClass::TurnZBufferOff()
 }
 
 
-// °øÅë ºí·»µù »óÅÂ ¼³Á¤ ÇÔ¼ö·Î Áßº¹ Á¦°Å
+// ê³µí†µ ë¸”ë Œë”© ìƒíƒœ ì„¤ì • í•¨ìˆ˜ë¡œ ì¤‘ë³µ ì œê±°
 void D3DClass::SetBlendState(ID3D11BlendState* state)
 {
 	const float blendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -607,19 +585,3 @@ void D3DClass::TurnOffCulling()
 	// ë’·ë©´ ì—†ìŒ ì»¬ë§ ëž˜ìŠ¤í„° ë¼ì´ì € ìƒíƒœë¥¼ ì„¤ì •í•©ë‹ˆë‹¤.
 	m_deviceContext->RSSetState(m_rasterStateNoCulling);
 }
-<<<<<<< HEAD
-
-void D3DClass::EnableDepthTestingWithoutWrites()
-{
-	// ±íÀÌ Å×½ºÆ®´Â ON, ±íÀÌ ¾²±â´Â OFF »óÅÂ·Î ¼³Á¤
-	// Åõ¸í °´Ã¼(Ç® µî)°¡ ÁöÇü¿¡ ÀÇÇØ ¿Ã¹Ù¸£°Ô °¡·ÁÁöµµ·Ï ÇÔ
-	m_deviceContext->OMSetDepthStencilState(m_depthTestNoWriteState, 1);
-}
-
-void D3DClass::DisableDepthTestingWithoutWrites()
-{
-	// ÀÏ¹Ý ±íÀÌ ½ºÅÙ½Ç »óÅÂ·Î º¹¿ø
-	m_deviceContext->OMSetDepthStencilState(m_depthStencilState, 1);
-}
-=======
->>>>>>> f569692fda4064b72833f8f7de8f4b631805e426
