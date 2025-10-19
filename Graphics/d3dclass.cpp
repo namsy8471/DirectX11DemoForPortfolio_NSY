@@ -390,7 +390,7 @@ bool D3DClass::Initialize(int screenWidth, int screenHeight, bool vsync, HWND hw
 
 	// Create an alpha enabled blend state description.
 	blendStateDescription.RenderTarget[0].BlendEnable = TRUE;
-	blendStateDescription.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
+	blendStateDescription.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
 	blendStateDescription.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
 	blendStateDescription.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
 	blendStateDescription.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
@@ -584,4 +584,16 @@ void D3DClass::TurnOffCulling()
 {
 	// 뒷면 없음 컬링 래스터 라이저 상태를 설정합니다.
 	m_deviceContext->RSSetState(m_rasterStateNoCulling);
+}
+
+// 투명 객체용 깊이 스텐실 상태 활성화 (깊이 테스트 ON, 깊이 쓰기 OFF)
+void D3DClass::EnableDepthTestingWithoutWrites()
+{
+	m_deviceContext->OMSetDepthStencilState(m_depthTestNoWriteState, 1);
+}
+
+// 일반 깊이 스텐실 상태로 복원 (깊이 테스트 ON, 깊이 쓰기 ON)
+void D3DClass::DisableDepthTestingWithoutWrites()
+{
+	m_deviceContext->OMSetDepthStencilState(m_depthStencilState, 1);
 }
