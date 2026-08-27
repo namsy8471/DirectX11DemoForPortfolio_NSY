@@ -7,6 +7,10 @@
 *.o
 *.obj
 
+# Wavefront OBJ files under the runtime data directory are source assets, not
+# compiler outputs.
+!Graphics/data/*.obj
+
 # Precompiled Headers
 *.gch
 *.pch
@@ -32,5 +36,8 @@
 *.app
 /.vs
 /Release
+/Debug
 /x64
+/Graphics/Debug
+/Graphics/Release
 /Graphics/x64

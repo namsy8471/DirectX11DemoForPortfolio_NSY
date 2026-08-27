@@ -1,4 +1,4 @@
-#include "stdafx.h"
+ï»¿#include "stdafx.h"
 #include "depthshaderclass.h"
 
 
@@ -7,26 +7,29 @@ DepthShaderClass::DepthShaderClass()
 }
 
 
-DepthShaderClass::DepthShaderClass(const DepthShaderClass& other)
-{
-}
-
-
 DepthShaderClass::~DepthShaderClass()
 {
+	Shutdown();
 }
 
 
 bool DepthShaderClass::Initialize(ID3D11Device* device, HWND hwnd)
 {
-	// Á¤Á¡ ¹× ÇÈ¼¿ ½¦ÀÌ´õ¸¦ ÃÊ±âÈ­ÇÕ´Ï´Ù.
-	return InitializeShader(device, hwnd, L"./data/depth_vs.hlsl", L"./data/depth_ps.hlsl");
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½È¼ï¿½ ï¿½ï¿½ï¿½Ì´ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­ï¿½Õ´Ï´ï¿½.
+	ShutdownShader();
+	if (!InitializeShader(device, hwnd, L"./data/depth_vs.hlsl", L"./data/depth_ps.hlsl"))
+	{
+		ShutdownShader();
+		return false;
+	}
+
+	return true;
 }
 
 
 void DepthShaderClass::Shutdown()
 {
-	// ¹öÅØ½º ¹× ÇÈ¼¿ ½¦ÀÌ´õ¿Í °ü·ÃµÈ °´Ã¼¸¦ Á¾·áÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½Ø½ï¿½ ï¿½ï¿½ ï¿½È¼ï¿½ ï¿½ï¿½ï¿½Ì´ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ãµï¿½ ï¿½ï¿½Ã¼ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	ShutdownShader();
 }
 
@@ -34,13 +37,13 @@ void DepthShaderClass::Shutdown()
 bool DepthShaderClass::Render(ID3D11DeviceContext* deviceContext, int indexCount, 
 	XMMATRIX worldMatrix, XMMATRIX viewMatrix, XMMATRIX projectionMatrix)
 {
-	// ·»´õ¸µ¿¡ »ç¿ëÇÒ ¼ÎÀÌ´õ ¸Å°³ º¯¼ö¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì´ï¿½ ï¿½Å°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	if(!SetShaderParameters(deviceContext, worldMatrix, viewMatrix, projectionMatrix))
 	{
 		return false;
 	}
 
-	// ¼³Á¤µÈ ¹öÆÛ¸¦ ¼ÎÀÌ´õ·Î ·»´õ¸µÇÑ´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Û¸ï¿½ ï¿½ï¿½ï¿½Ì´ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ñ´ï¿½.
 	RenderShader(deviceContext, indexCount);
 
 	return true;
@@ -49,18 +52,18 @@ bool DepthShaderClass::Render(ID3D11DeviceContext* deviceContext, int indexCount
 
 bool DepthShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, const WCHAR* vsFilename, const WCHAR* psFilename)
 {
-	ID3D10Blob* errorMessage = nullptr;
+	Microsoft::WRL::ComPtr<ID3D10Blob> errorMessage;
 
-    // ¹öÅØ½º ½¦ÀÌ´õ ÄÚµå¸¦ ÄÄÆÄÀÏÇÑ´Ù.
-	ID3D10Blob* vertexShaderBuffer = nullptr;
-	if(FAILED(D3DCompileFromFile(vsFilename, NULL, NULL, "DepthVertexShader", "vs_5_0", D3D10_SHADER_ENABLE_STRICTNESS, 0, &vertexShaderBuffer, &errorMessage)))
+    // ï¿½ï¿½ï¿½Ø½ï¿½ ï¿½ï¿½ï¿½Ì´ï¿½ ï¿½Úµå¸¦ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ñ´ï¿½.
+	Microsoft::WRL::ComPtr<ID3D10Blob> vertexShaderBuffer;
+	if(FAILED(D3DCompileFromFile(vsFilename, NULL, NULL, "DepthVertexShader", "vs_5_0", D3D10_SHADER_ENABLE_STRICTNESS, 0, vertexShaderBuffer.ReleaseAndGetAddressOf(), errorMessage.ReleaseAndGetAddressOf())))
 	{
-		// ¼ÎÀÌ´õ ÄÄÆÄÀÏ ½ÇÆÐ½Ã ¿À·ù¸Þ½ÃÁö¸¦ Ãâ·ÂÇÕ´Ï´Ù.
+		// ï¿½ï¿½ï¿½Ì´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ð½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Þ½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 		if(errorMessage)
 		{
-			OutputShaderErrorMessage(errorMessage, hwnd, vsFilename);
+			OutputShaderErrorMessage(errorMessage.Get(), hwnd, vsFilename);
 		}
-		// ÄÄÆÄÀÏ ¿À·ù°¡ ¾Æ´Ï¶ó¸é ¼ÎÀÌ´õ ÆÄÀÏÀ» Ã£À» ¼ö ¾ø´Â °æ¿ìÀÔ´Ï´Ù.
+		// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Æ´Ï¶ï¿½ï¿½ ï¿½ï¿½ï¿½Ì´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Ã£ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ô´Ï´ï¿½.
 		else
 		{
 			MessageBox(hwnd, vsFilename, L"Missing Shader File", MB_OK);
@@ -69,16 +72,16 @@ bool DepthShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, const W
 		return false;
 	}
 
-    // ÇÈ¼¿ ½¦ÀÌ´õ ÄÚµå¸¦ ÄÄÆÄÀÏÇÑ´Ù.
-	ID3D10Blob* pixelShaderBuffer = nullptr;
-	if(FAILED(D3DCompileFromFile(psFilename, NULL, NULL, "DepthPixelShader", "ps_5_0", D3D10_SHADER_ENABLE_STRICTNESS, 0, &pixelShaderBuffer, &errorMessage)))
+    // ï¿½È¼ï¿½ ï¿½ï¿½ï¿½Ì´ï¿½ ï¿½Úµå¸¦ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ñ´ï¿½.
+	Microsoft::WRL::ComPtr<ID3D10Blob> pixelShaderBuffer;
+	if(FAILED(D3DCompileFromFile(psFilename, NULL, NULL, "DepthPixelShader", "ps_5_0", D3D10_SHADER_ENABLE_STRICTNESS, 0, pixelShaderBuffer.ReleaseAndGetAddressOf(), errorMessage.ReleaseAndGetAddressOf())))
 	{
-		// ¼ÎÀÌ´õ ÄÄÆÄÀÏ ½ÇÆÐ½Ã ¿À·ù¸Þ½ÃÁö¸¦ Ãâ·ÂÇÕ´Ï´Ù.
+		// ï¿½ï¿½ï¿½Ì´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ð½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Þ½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 		if(errorMessage)
 		{
-			OutputShaderErrorMessage(errorMessage, hwnd, psFilename);
+			OutputShaderErrorMessage(errorMessage.Get(), hwnd, psFilename);
 		}
-		// ÄÄÆÄÀÏ ¿À·ù°¡ ¾Æ´Ï¶ó¸é ¼ÎÀÌ´õ ÆÄÀÏÀ» Ã£À» ¼ö ¾ø´Â °æ¿ìÀÔ´Ï´Ù.
+		// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Æ´Ï¶ï¿½ï¿½ ï¿½ï¿½ï¿½Ì´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Ã£ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ô´Ï´ï¿½.
 		else
 		{
 			MessageBox(hwnd, psFilename, L"Missing Shader File", MB_OK);
@@ -87,20 +90,20 @@ bool DepthShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, const W
 		return false;
 	}
 
-    // ¹öÆÛ·ÎºÎÅÍ Á¤Á¡ ¼ÎÀÌ´õ¸¦ »ý¼ºÇÑ´Ù.
-	if(FAILED(device->CreateVertexShader(vertexShaderBuffer->GetBufferPointer(), vertexShaderBuffer->GetBufferSize(), NULL, &m_vertexShader)))
+    // ï¿½ï¿½ï¿½Û·Îºï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì´ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ñ´ï¿½.
+	if(FAILED(device->CreateVertexShader(vertexShaderBuffer->GetBufferPointer(), vertexShaderBuffer->GetBufferSize(), NULL, m_vertexShader.ReleaseAndGetAddressOf())))
 	{
 		return false;
 	}
 
-    // ¹öÆÛ¿¡¼­ ÇÈ¼¿ ½¦ÀÌ´õ¸¦ »ý¼ºÇÕ´Ï´Ù.
-	if(FAILED(device->CreatePixelShader(pixelShaderBuffer->GetBufferPointer(), pixelShaderBuffer->GetBufferSize(), NULL, &m_pixelShader)))
+    // ï¿½ï¿½ï¿½Û¿ï¿½ï¿½ï¿½ ï¿½È¼ï¿½ ï¿½ï¿½ï¿½Ì´ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+	if(FAILED(device->CreatePixelShader(pixelShaderBuffer->GetBufferPointer(), pixelShaderBuffer->GetBufferSize(), NULL, m_pixelShader.ReleaseAndGetAddressOf())))
 	{
 		return false;
 	}
 
-	// Á¤Á¡ ÀÔ·Â ·¹ÀÌ¾Æ¿ô ±¸Á¶Ã¼¸¦ ¼³Á¤ÇÕ´Ï´Ù.
-	// ÀÌ ¼³Á¤Àº ModelClass¿Í ¼ÎÀÌ´õÀÇ VertexType ±¸Á¶¿Í ÀÏÄ¡ÇØ¾ßÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½Ô·ï¿½ ï¿½ï¿½ï¿½Ì¾Æ¿ï¿½ ï¿½ï¿½ï¿½ï¿½Ã¼ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+	// ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ModelClassï¿½ï¿½ ï¿½ï¿½ï¿½Ì´ï¿½ï¿½ï¿½ VertexType ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½Ø¾ï¿½ï¿½Õ´Ï´ï¿½.
 	D3D11_INPUT_ELEMENT_DESC polygonLayout[1];
 	polygonLayout[0].SemanticName = "POSITION";
 	polygonLayout[0].SemanticIndex = 0;
@@ -110,23 +113,16 @@ bool DepthShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, const W
 	polygonLayout[0].InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
 	polygonLayout[0].InstanceDataStepRate = 0;
 
-	// ·¹ÀÌ¾Æ¿ôÀÇ ¿ä¼Ò ¼ö¸¦ °¡Á®¿É´Ï´Ù.
+	// ï¿½ï¿½ï¿½Ì¾Æ¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½É´Ï´ï¿½.
 	unsigned int numElements = sizeof(polygonLayout) / sizeof(polygonLayout[0]);
 
-	// Á¤Á¡ ÀÔ·Â ·¹ÀÌ¾Æ¿ôÀ» ¸¸µì´Ï´Ù.
-	if(FAILED(device->CreateInputLayout(polygonLayout, numElements, vertexShaderBuffer->GetBufferPointer(), vertexShaderBuffer->GetBufferSize(), &m_layout)))
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½Ô·ï¿½ ï¿½ï¿½ï¿½Ì¾Æ¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.
+	if(FAILED(device->CreateInputLayout(polygonLayout, numElements, vertexShaderBuffer->GetBufferPointer(), vertexShaderBuffer->GetBufferSize(), m_layout.ReleaseAndGetAddressOf())))
 	{
 		return false;
 	}
 
-	// ´õ ÀÌ»ó »ç¿ëµÇÁö ¾Ê´Â Á¤Á¡ ¼ÎÀÌ´õ ÆÛ¹ö¿Í ÇÈ¼¿ ¼ÎÀÌ´õ ¹öÆÛ¸¦ ÇØÁ¦ÇÕ´Ï´Ù.
-	vertexShaderBuffer->Release();
-	vertexShaderBuffer = 0;
-
-	pixelShaderBuffer->Release();
-	pixelShaderBuffer = 0;
-
-    // Á¤Á¡ ¼ÎÀÌ´õ¿¡ ÀÖ´Â Çà·Ä »ó¼ö ¹öÆÛÀÇ ±¸Á¶Ã¼¸¦ ÀÛ¼ºÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì´ï¿½ï¿½ï¿½ ï¿½Ö´ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ã¼ï¿½ï¿½ ï¿½Û¼ï¿½ï¿½Õ´Ï´ï¿½.
 	D3D11_BUFFER_DESC matrixBufferDesc;
     matrixBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
 	matrixBufferDesc.ByteWidth = sizeof(MatrixBufferType);
@@ -135,8 +131,8 @@ bool DepthShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, const W
     matrixBufferDesc.MiscFlags = 0;
 	matrixBufferDesc.StructureByteStride = 0;
 
-	// »ó¼ö ¹öÆÛ Æ÷ÀÎÅÍ¸¦ ¸¸µé¾î ÀÌ Å¬·¡½º¿¡¼­ Á¤Á¡ ¼ÎÀÌ´õ »ó¼ö ¹öÆÛ¿¡ Á¢±ÙÇÒ ¼ö ÀÖ°Ô ÇÕ´Ï´Ù.
-	if(FAILED(device->CreateBuffer(&matrixBufferDesc, NULL, &m_matrixBuffer)))
+	// ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ Å¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì´ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Û¿ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ö°ï¿½ ï¿½Õ´Ï´ï¿½.
+	if(FAILED(device->CreateBuffer(&matrixBufferDesc, NULL, m_matrixBuffer.ReleaseAndGetAddressOf())))
 	{
 		return false;
 	}
@@ -147,80 +143,53 @@ bool DepthShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, const W
 
 void DepthShaderClass::ShutdownShader()
 {
-	// Çà·Ä »ó¼ö ¹öÆÛ¸¦ ÇØÁ¦ÇÕ´Ï´Ù.
-	if(m_matrixBuffer)
-	{
-		m_matrixBuffer->Release();
-		m_matrixBuffer = 0;
-	}
-
-	// ·¹ÀÌ¾Æ¿ôÀ» ÇØÁ¦ÇÕ´Ï´Ù.
-	if(m_layout)
-	{
-		m_layout->Release();
-		m_layout = 0;
-	}
-
-	// ÇÈ¼¿ ½¦ÀÌ´õ¸¦ ÇØÁ¦ÇÕ´Ï´Ù.
-	if(m_pixelShader)
-	{
-		m_pixelShader->Release();
-		m_pixelShader = 0;
-	}
-
-	// ¹öÅØ½º ½¦ÀÌ´õ¸¦ ÇØÁ¦ÇÕ´Ï´Ù.
-	if(m_vertexShader)
-	{
-		m_vertexShader->Release();
-		m_vertexShader = 0;
-	}
+	m_matrixBuffer.Reset();
+	m_layout.Reset();
+	m_pixelShader.Reset();
+	m_vertexShader.Reset();
 }
 
 
 void DepthShaderClass::OutputShaderErrorMessage(ID3D10Blob* errorMessage, HWND hwnd, const WCHAR* shaderFilename)
 {
-	// ¿¡·¯ ¸Þ½ÃÁö¸¦ Ãâ·ÂÃ¢¿¡ Ç¥½ÃÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½Þ½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ã¢ï¿½ï¿½ Ç¥ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	OutputDebugStringA(reinterpret_cast<const char*>(errorMessage->GetBufferPointer()));
 
-	// ¿¡·¯ ¸Þ¼¼Áö¸¦ ¹ÝÈ¯ÇÕ´Ï´Ù.
-	errorMessage->Release();
-	errorMessage = 0;
-
-	// ÄÄÆÄÀÏ ¿¡·¯°¡ ÀÖÀ½À» ÆË¾÷ ¸Þ¼¼Áö·Î ¾Ë·ÁÁÝ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ë¾ï¿½ ï¿½Þ¼ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ë·ï¿½ï¿½Ý´Ï´ï¿½.
 	MessageBox(hwnd, L"Error compiling shader.", shaderFilename, MB_OK);
 }
 
 
 bool DepthShaderClass::SetShaderParameters(ID3D11DeviceContext* deviceContext, XMMATRIX worldMatrix, XMMATRIX viewMatrix, XMMATRIX projectionMatrix)
 {
-	// Çà·ÄÀ» transposeÇÏ¿© ¼ÎÀÌ´õ¿¡¼­ »ç¿ëÇÒ ¼ö ÀÖ°Ô ÇÕ´Ï´Ù
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ transposeï¿½Ï¿ï¿½ ï¿½ï¿½ï¿½Ì´ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ö°ï¿½ ï¿½Õ´Ï´ï¿½
 	worldMatrix = XMMatrixTranspose(worldMatrix);
 	viewMatrix = XMMatrixTranspose(viewMatrix);
 	projectionMatrix = XMMatrixTranspose(projectionMatrix);
 
-	// »ó¼ö ¹öÆÛÀÇ ³»¿ëÀ» ¾µ ¼ö ÀÖµµ·Ï Àá±Þ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ ï¿½Öµï¿½ï¿½ï¿½ ï¿½ï¿½Þ´Ï´ï¿½.
 	D3D11_MAPPED_SUBRESOURCE mappedResource;
-	if(FAILED(deviceContext->Map(m_matrixBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource)))
+	if(FAILED(deviceContext->Map(m_matrixBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource)))
 	{
 		return false;
 	}
 
-	// »ó¼ö ¹öÆÛÀÇ µ¥ÀÌÅÍ¿¡ ´ëÇÑ Æ÷ÀÎÅÍ¸¦ °¡Á®¿É´Ï´Ù.
+	// ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Í¿ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½É´Ï´ï¿½.
 	MatrixBufferType* dataPtr = (MatrixBufferType*)mappedResource.pData;
 
-	// »ó¼ö ¹öÆÛ¿¡ Çà·ÄÀ» º¹»çÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Û¿ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	dataPtr->world = worldMatrix;
 	dataPtr->view = viewMatrix;
 	dataPtr->projection = projectionMatrix;
 
-	// »ó¼ö ¹öÆÛÀÇ Àá±ÝÀ» Ç±´Ï´Ù.
-    deviceContext->Unmap(m_matrixBuffer, 0);
+	// ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ Ç±ï¿½Ï´ï¿½.
+    deviceContext->Unmap(m_matrixBuffer.Get(), 0);
 
-	// Á¤Á¡ ¼ÎÀÌ´õ¿¡¼­ÀÇ »ó¼ö ¹öÆÛÀÇ À§Ä¡¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	unsigned bufferNumber = 0;
 
-	// ¸¶Áö¸·À¸·Î Á¤Á¡ ¼ÎÀÌ´õÀÇ »ó¼ö ¹öÆÛ¸¦ ¹Ù²ï °ªÀ¸·Î ¹Ù²ß´Ï´Ù.
-    deviceContext->VSSetConstantBuffers(bufferNumber, 1, &m_matrixBuffer);
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì´ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Û¸ï¿½ ï¿½Ù²ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ù²ß´Ï´ï¿½.
+    deviceContext->VSSetConstantBuffers(bufferNumber, 1, m_matrixBuffer.GetAddressOf());
 
 	return true;
 }
@@ -228,13 +197,13 @@ bool DepthShaderClass::SetShaderParameters(ID3D11DeviceContext* deviceContext, X
 
 void DepthShaderClass::RenderShader(ID3D11DeviceContext* deviceContext, int indexCount)
 {
-	// Á¤Á¡ ÀÔ·Â ·¹ÀÌ¾Æ¿ôÀ» ¼³Á¤ÇÕ´Ï´Ù.
-	deviceContext->IASetInputLayout(m_layout);
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½Ô·ï¿½ ï¿½ï¿½ï¿½Ì¾Æ¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+	deviceContext->IASetInputLayout(m_layout.Get());
 
-    // »ï°¢ÇüÀ» ±×¸± Á¤Á¡ ¼ÎÀÌ´õ¿Í ÇÈ¼¿ ¼ÎÀÌ´õ¸¦ ¼³Á¤ÇÕ´Ï´Ù.
-    deviceContext->VSSetShader(m_vertexShader, NULL, 0);
-    deviceContext->PSSetShader(m_pixelShader, NULL, 0);
+    // ï¿½ï°¢ï¿½ï¿½ï¿½ï¿½ ï¿½×¸ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì´ï¿½ï¿½ï¿½ ï¿½È¼ï¿½ ï¿½ï¿½ï¿½Ì´ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+    deviceContext->VSSetShader(m_vertexShader.Get(), NULL, 0);
+    deviceContext->PSSetShader(m_pixelShader.Get(), NULL, 0);
 
-	// »ï°¢ÇüÀ» ±×¸³´Ï´Ù.
+	// ï¿½ï°¢ï¿½ï¿½ï¿½ï¿½ ï¿½×¸ï¿½ï¿½Ï´ï¿½.
 	deviceContext->DrawIndexed(indexCount, 0, 0);
 }

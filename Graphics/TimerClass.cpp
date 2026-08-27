@@ -1,66 +1,43 @@
-#include "stdafx.h"
 #include "TimerClass.h"
 
-
-TimerClass::TimerClass()
+bool TimerClass::Initialize() noexcept
 {
-}
-
-
-TimerClass::TimerClass(const TimerClass& other)
-{
-}
-
-
-TimerClass::~TimerClass()
-{
-}
-
-
-bool TimerClass::Initialize()
-{
-	// 이 시스템이 고성능 타이머를 지원하는지 확인하십시오.
-	/*QueryPerformanceFrequency((LARGE_INTEGER*)&m_frequency);
-	if (m_frequency == 0)
+	LARGE_INTEGER frequency{};
+	if (!QueryPerformanceFrequency(&frequency) || frequency.QuadPart <= 0)
 	{
-		return false;
-	}*/
-
-	//// 빈도 카운터가 매 밀리 초마다 틱하는 횟수를 확인합니다.
-	//m_ticksPerMs = (float)(m_frequency / 1000);
-
-	//QueryPerformanceCounter((LARGE_INTEGER*)&m_startTime);
-
-	QueryPerformanceFrequency(&m_frequency);
-	if (m_frequency.QuadPart == 0)
-	{
+		m_millisecondsPerTick = 0.0;
+		m_frameTimeMilliseconds = 0.0f;
 		return false;
 	}
 
-	// 빈도 카운터가 매 밀리 초마다 틱하는 횟수를 확인합니다.
-	m_ticksPerMs = (float)(m_frequency.QuadPart / 1000);
-
-	QueryPerformanceCounter(&m_startTime);
-
+	m_millisecondsPerTick = 1000.0 / static_cast<double>(frequency.QuadPart);
+	Reset();
 	return true;
 }
 
-
-void TimerClass::Frame()
+void TimerClass::Reset() noexcept
 {
-	LARGE_INTEGER currentTime;
-
-	QueryPerformanceCounter(&currentTime);
-
-	float timeDifference = (float)(currentTime.QuadPart - m_startTime.QuadPart);
-
-	m_frameTime = timeDifference / m_ticksPerMs;
-
 	QueryPerformanceCounter(&m_startTime);
+	m_frameTimeMilliseconds = 0.0f;
 }
 
-
-float TimerClass::GetTime()
+void TimerClass::Frame() noexcept
 {
-	return m_frameTime;
+	if (m_millisecondsPerTick <= 0.0)
+	{
+		m_frameTimeMilliseconds = 0.0f;
+		return;
+	}
+
+	LARGE_INTEGER currentTime{};
+	QueryPerformanceCounter(&currentTime);
+	const auto elapsedTicks = currentTime.QuadPart - m_startTime.QuadPart;
+	m_frameTimeMilliseconds = static_cast<float>(
+		static_cast<double>(elapsedTicks) * m_millisecondsPerTick);
+	m_startTime = currentTime;
+}
+
+float TimerClass::GetTime() const noexcept
+{
+	return m_frameTimeMilliseconds;
 }

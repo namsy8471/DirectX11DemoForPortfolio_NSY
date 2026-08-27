@@ -1,2 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Wavefront meshes are authored assets. Keep their bytes stable across clones
+# and avoid rendering hundreds of thousands of geometry lines as source diffs.
+Graphics/data/*.obj binary

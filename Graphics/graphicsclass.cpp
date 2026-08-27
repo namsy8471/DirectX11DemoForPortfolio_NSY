@@ -3,59 +3,44 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "graphicsclass.h"
+#include "bitmapclass.h"
+#include "cameraclass.h"
 #include "CollisionHelpers.h"
+#include "d3dclass.h"
+#include "FireShaderClass.h"
+#include "foliageclass.h"
+#include "foliageshaderclass.h"
+#include "inputclass.h"
+#include "LightClass.h"
+#include "modelclass.h"
+#include "ModelClassForNoiseFilter.h"
+#include "SkyDomeClass.h"
+#include "SkyDomeShaderClass.h"
+#include "SoundClass.h"
+#include "TerrainClass.h"
+#include "textclass.h"
+#include "textureshaderclass.h"
+#include "Engine/Input/FirstPersonCameraController.h"
+#include "Engine/Rendering/SoftShadowPipeline.h"
+#include "Engine/Scene/GameObject.h"
+#include "Engine/Core/ScopeExit.h"
 
-GraphicsClass::GraphicsClass()
-{
-	m_D3D = nullptr;
-	m_Camera = nullptr;
+#include <utility>
 
-	m_Models.clear();
+using namespace DirectX;
 
-	m_TextureShader = nullptr;
-	m_Crosshairs.clear();
-
-	m_Text = nullptr;
-
-	m_Terrain = nullptr;
-	m_TerrainShader = nullptr;
-
-	m_Light = nullptr;
-	m_LightShader = nullptr;
-
-	m_RenderTexture = nullptr;
-	m_DepthShader = nullptr;
-	m_ShadowShader = nullptr;
-
-	wholeObj = 0;
-	wholePoly = 0;
-
-	obj_Names[0] = { L"./data/bear.obj" };
-	obj_Names[1] = { L"./data/11560_wild_turkey_male_v2_l2.obj"};
-	obj_Names[2] = { L"./data/11561_Turkey - Wild_female_v4_l1.obj" };
-	obj_Names[3] = { L"./data/horse.obj" };
-
-	tex_Names[0] = { L"./data/bear.dds" };
-	tex_Names[1] = { L"./data/11560_wild_turkey_male_v2_l2.dds" };
-	tex_Names[2] = { L"./data/11561_Turkey - Wild_female_v4_l1.dds" };
-	tex_Names[3] = { L"./data/horse.dds" };
-
-	m_SkyDome = nullptr;
-	// m_ShadowShader already set above
-}
-
-
-GraphicsClass::GraphicsClass(const GraphicsClass& other)
+GraphicsClass::GraphicsClass(Engine::Scene::SceneDefinition sceneDefinition)
+	: m_sceneDefinition(std::move(sceneDefinition))
 {
 }
+GraphicsClass::~GraphicsClass() = default;
 
-
-GraphicsClass::~GraphicsClass()
+bool GraphicsClass::Initialize(const Engine::NativeWindow& window)
 {
+	return InitializeResources(window.width, window.height, window.handle, window.instance);
 }
 
-
-bool GraphicsClass::Initialize(int screenWidth, int screenHeight, HWND hwnd, HINSTANCE hInstance)
+bool GraphicsClass::InitializeResources(int screenWidth, int screenHeight, HWND hwnd, HINSTANCE hInstance)
 {
 	bool result;
 
@@ -66,14 +51,14 @@ bool GraphicsClass::Initialize(int screenWidth, int screenHeight, HWND hwnd, HIN
 	m_screenHeight = screenHeight;
 
 	// Create the Direct3D object.
-	m_D3D = new D3DClass;
-	if(!m_D3D)
+	m_d3d = Engine::MakeScopedResource<D3DClass>();
+	if(!m_d3d)
 	{
 		return false;
 	}
 
 	// Initialize the Direct3D object.
-	result = m_D3D->Initialize(screenWidth, screenHeight, VSYNC_ENABLED, hwnd, FULL_SCREEN, SCREEN_DEPTH, SCREEN_NEAR);
+	result = m_d3d->Initialize(screenWidth, screenHeight, RenderSettings::Vsync, hwnd, RenderSettings::FullScreen, RenderSettings::ScreenDepth, RenderSettings::ScreenNear);
 	if(!result)
 	{
 		MessageBox(hwnd, L"Could not initialize Direct3D.", L"Error", MB_OK);
@@ -83,117 +68,103 @@ bool GraphicsClass::Initialize(int screenWidth, int screenHeight, HWND hwnd, HIN
 
 
 	// Create the camera object.
-	m_Camera = new CameraClass;
-	if(!m_Camera)
+	m_camera = std::make_unique<CameraClass>();
+	if(!m_camera)
 	{
 		return false;
 	}
 
 	// 카메라 포지션을 설정한다
-	m_Camera->SetPosition(0.0f, 0.0f, -10.0f);
-	m_Camera->RenderBaseViewMatrix();
+	m_camera->SetPosition(0.0f, 0.0f, -10.0f);
 
-
-	result = m_Camera->Initialize();
+	result = m_camera->Initialize();
 	if (!result)
 	{
 		return false;
 	}
 	
 	// 입력 개체를 만듭니다.
-	m_Input = new InputClass;
-	if (!m_Input)
+	m_input = Engine::MakeScopedResource<InputClass>();
+	if (!m_input)
 	{
 		return false;
 	}
 
 	// 입력 개체를 초기화합니다.
-	result = m_Input->Initialize(hInstance, hwnd, screenWidth, screenHeight);
+	result = m_input->Initialize(hInstance, hwnd, screenWidth, screenHeight);
 	if (!result)
 	{
 		MessageBox(hwnd, L"Could not initialize the input object.", L"Error", MB_OK);
 		return false;
 	}
-
-	m_Input->SetCamera(m_Camera);
+	m_cameraController = std::make_unique<Engine::FirstPersonCameraController>();
 
 	// Create the model object.
-	for (int i = 0; i < MAX_OBJS; i++)
+	for (const auto& definition : m_sceneDefinition.gameObjects)
 	{
-		m_Models.push_back(new ModelClass);
-		if (!m_Models[i])
-		{
-			MessageBox(hwnd, L"m_Models[i] is not exist.", L"Error", MB_OK);
-			return false;
-		}
-
-		result = m_Models[i]->Initialize(hwnd, m_D3D->GetDevice(), obj_Names[i], tex_Names[i]);
+		auto gameObject = std::make_unique<Engine::Scene::GameObject>();
+		result = gameObject->InitializeModel(
+			hwnd,
+			m_d3d->GetDevice(),
+			definition.modelPath.c_str(),
+			definition.texturePath.c_str());
 		if (!result)
 		{
 			MessageBox(hwnd, L"Could not initialize the model object.", L"Error", MB_OK);
 			return false;
 		}
 
-		wholeObj++;
-		wholePoly += m_Models[i]->CountPolygons();
+		m_objectCount++;
+		m_polygonCount += static_cast<unsigned int>(gameObject->GetPolygonCount());
+		gameObject->SetTransform(definition.transform);
+		m_gameObjects.push_back(std::move(gameObject));
 	}
-
-	// 모델 위치 초기화
-	m_Models[0]->SetPosition(3.f, -2.5f, -1.f);
-
-	m_Models[1]->SetPosition(8.f, -2.5f, -1.f);
-	m_Models[1]->SetRotationByDegrees(90.f, 90.f, 0.f);
-	m_Models[1]->SetScale(0.01f, 0.01f, 0.01f);
-
-	m_Models[2]->SetPosition(0.f, -2.5f, -1.f);
-	m_Models[2]->SetRotationByDegrees(90.f, 90.f, 0.f);
-	m_Models[2]->SetScale(0.01f, 0.01f, 0.01f);
-
-	m_Models[3]->SetPosition(5.f, -2.5f, -1.f);
-	m_Models[3]->SetRotationByDegrees(90.f, 0.f, 0.f);
-	m_Models[3]->SetScale(0.002f, 0.002f, 0.002f);
 
 
 	// 불 효과 모델 객체 생성
-	m_ModelForFire = new ModelClassForNoiseFilter;
-	if (!m_ModelForFire)
+	m_fireModel = Engine::MakeScopedResource<ModelClassForNoiseFilter>();
+	if (!m_fireModel)
 	{
 		return false;
 	}
 
-	wholeObj++;
-	wholePoly += m_ModelForFire->GetIndexCount() / 3;
-
 	// 모델 객체 초기화
-	if (!m_ModelForFire->Initialize(hwnd, m_D3D->GetDevice(), "./data/square.txt", L"./data/fire01.dds",
-		L"./data/noise01.dds", L"./data/alpha01.dds"))
+	if (!m_fireModel->Initialize(
+		hwnd,
+		m_d3d->GetDevice(),
+		m_sceneDefinition.fire.modelPath.c_str(),
+		m_sceneDefinition.fire.fireTexturePath.c_str(),
+		m_sceneDefinition.fire.noiseTexturePath.c_str(),
+		m_sceneDefinition.fire.alphaTexturePath.c_str()))
 	{
 		MessageBox(hwnd, L"Could not initialize the model object.", L"Error", MB_OK);
 		return false;
 	}
+	m_objectCount++;
+	m_polygonCount += static_cast<unsigned int>(m_fireModel->GetIndexCount() / 3);
 
 	// 파이어 쉐이더 객체를 생성한다.
-	m_FireShader = new FireShaderClass;
-	if (!m_FireShader)
+	m_fireShader = Engine::MakeScopedResource<FireShaderClass>();
+	if (!m_fireShader)
 	{
 		return false;
 	}
 
 	// 화재 쉐이더 객체를 초기화합니다.
-	if (!m_FireShader->Initialize(m_D3D->GetDevice(), hwnd))
+	if (!m_fireShader->Initialize(m_d3d->GetDevice(), hwnd))
 	{
 		MessageBox(hwnd, L"Could not initialize the fire shader object.", L"Error", MB_OK);
 		return false;
 	}
 
-	m_TextureShader = new TextureShaderClass;
-	if (!m_TextureShader)
+	m_textureShader = Engine::MakeScopedResource<TextureShaderClass>();
+	if (!m_textureShader)
 	{
 		return false;
 	}
 
 	// Initialize the texture shader object.
-	result = m_TextureShader->Initialize(m_D3D->GetDevice(), hwnd);
+	result = m_textureShader->Initialize(m_d3d->GetDevice(), hwnd);
 	if (!result)
 	{
 		MessageBox(hwnd, L"Could not initialize the texture shader object.", L"Error", MB_OK);
@@ -202,59 +173,71 @@ bool GraphicsClass::Initialize(int screenWidth, int screenHeight, HWND hwnd, HIN
 
 	for (int i = 0; i < 4; i++)
 	{
-		m_Crosshairs.push_back(new BitmapClass);
-		if (!m_Crosshairs[i])
+		m_crosshairs.push_back(Engine::MakeScopedResource<BitmapClass>());
+		if (!m_crosshairs[i])
 		{
 			return false;
 		}
 
-		result = m_Crosshairs[i]->Initialize(m_D3D->GetDevice(), screenWidth, screenHeight, L"./data/Crosshair.dds", 256, 256);
+		result = m_crosshairs[i]->Initialize(
+			m_d3d->GetDevice(),
+			screenWidth,
+			screenHeight,
+			m_sceneDefinition.ui.crosshairTexturePath.c_str(),
+			256,
+			256);
 		if (!result)
 		{
 			MessageBox(hwnd, L"Could not initialize the Crosshair bitmap object.", L"Error", MB_OK);
 			return false;
 		}
 
-		wholeObj++;
+		m_objectCount++;
 	}
 
-	m_Crosshairs[0]->SetPosition(-5, 0.1f, 0);
-	m_Crosshairs[1]->SetPosition(5, 0.1f, 0);
-	m_Crosshairs[2]->SetPosition(0.1f, 5, 0);
-	m_Crosshairs[3]->SetPosition(0.1f, -5, 0);
+	m_crosshairs[0]->SetPosition(-5, 0.1f, 0);
+	m_crosshairs[1]->SetPosition(5, 0.1f, 0);
+	m_crosshairs[2]->SetPosition(0.1f, 5, 0);
+	m_crosshairs[3]->SetPosition(0.1f, -5, 0);
 
-	m_Crosshairs[0]->SetScale(0.01f, 0.005f, 1);
-	m_Crosshairs[1]->SetScale(0.01f, 0.005f, 1);
-	m_Crosshairs[2]->SetScale(0.008f, 0.01f, 1);
-	m_Crosshairs[3]->SetScale(0.008f, 0.01f, 1);
+	m_crosshairs[0]->SetScale(0.01f, 0.005f, 1);
+	m_crosshairs[1]->SetScale(0.01f, 0.005f, 1);
+	m_crosshairs[2]->SetScale(0.008f, 0.01f, 1);
+	m_crosshairs[3]->SetScale(0.008f, 0.01f, 1);
 
-	m_MouseCursor = new BitmapClass;
-	if (!m_MouseCursor)
+	m_mouseCursor = Engine::MakeScopedResource<BitmapClass>();
+	if (!m_mouseCursor)
 	{
 		return false;
 	}
 
-	wholeObj++;
+	m_objectCount++;
 
-	result = m_MouseCursor->Initialize(m_D3D->GetDevice(), screenWidth, screenHeight, L"./data/mouse.dds", 32, 32);
+	result = m_mouseCursor->Initialize(
+		m_d3d->GetDevice(),
+		screenWidth,
+		screenHeight,
+		m_sceneDefinition.ui.cursorTexturePath.c_str(),
+		32,
+		32);
 	if (!result)
 	{
 		MessageBox(hwnd, L"Could not initialize the bitmap object.", L"Error", MB_OK);
 		return false;
 	}
 
-	m_Camera->Render();
-	m_Camera->GetViewMatrix(baseViewMatrix);
+	m_camera->UpdateViewMatrix();
+	m_camera->GetViewMatrix(baseViewMatrix);
 
 	// Create the text object.
-	m_Text = new TextClass;
-	if (!m_Text)
+	m_text = Engine::MakeScopedResource<TextClass>();
+	if (!m_text)
 	{
 		return false;
 	}
 
 	// Initialize the text object.
-	result = m_Text->Initialize(m_D3D->GetDevice(), m_D3D->GetDeviceContext(), hwnd, screenWidth, screenHeight, baseViewMatrix);
+	result = m_text->Initialize(m_d3d->GetDevice(), m_d3d->GetDeviceContext(), hwnd, screenWidth, screenHeight, baseViewMatrix);
 	if (!result)
 	{
 		MessageBox(hwnd, L"Could not initialize the text object.", L"Error", MB_OK);
@@ -263,279 +246,81 @@ bool GraphicsClass::Initialize(int screenWidth, int screenHeight, HWND hwnd, HIN
 
 
 	// 지형 객체를 생성합니다.
-	m_Terrain = new TerrainClass;
-	if (!m_Terrain)
+	m_terrain = Engine::MakeScopedResource<TerrainClass>();
+	if (!m_terrain)
 	{
 		return false;
 	}
 
 	// 지형 객체를 초기화 합니다.
-	result = m_Terrain->Initialize(m_D3D->GetDevice(), "./data/heightmap01.bmp", L"./data/dirt01.dds");
+	result = m_terrain->Initialize(
+		m_d3d->GetDevice(),
+		m_sceneDefinition.terrain.heightMapPath.c_str(),
+		m_sceneDefinition.terrain.texturePath.c_str());
 	if (!result)
 	{
 		MessageBox(hwnd, L"Could not initialize the terrain object.", L"Error", MB_OK);
 		return false;
 	}
-
-	// 지형 쉐이더 객체를 생성합니다.
-	m_TerrainShader = new TerrainShaderClass;
-	if (!m_TerrainShader)
-	{
-		return false;
-	}
-
-	// 지형 쉐이더 객체를 초기화 합니다.
-	result = m_TerrainShader->Initialize(m_D3D->GetDevice(), hwnd);
-	if (!result)
-	{
-		MessageBox(hwnd, L"Could not initialize the terrain shader object.", L"Error", MB_OK);
-		return false;
-	}
+	m_terrain->SetWorldOffset(m_sceneDefinition.terrain.worldOffset);
 
 	// 조명 객체를 생성합니다.
-	m_Light = new LightClass;
-	if (!m_Light)
+	m_light = std::make_unique<LightClass>();
+	if (!m_light)
 	{
 		return false;
 	}
 
 	// 조명 객체를 초기화 합니다.
-	//m_Light->SetAmbientColor(XMFLOAT4(0.05f, 0.05f, 0.05f, 1.0f));
-	m_Light->SetAmbientColor(XMFLOAT4(0.15f, 0.15f, 0.15f, 1.0f));
-	m_Light->SetDiffuseColor(XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
-	m_Light->SetLookAt(XMFLOAT3(0.0f, 0.0f, 10.0f));
-	m_Light->SetSpecularColor(XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
-	m_Light->SetSpecularPower(1000.f);
-	m_Light->GenerateProjectionMatrix(SCREEN_DEPTH, SCREEN_NEAR);
+	//m_light->SetAmbientColor(XMFLOAT4(0.05f, 0.05f, 0.05f, 1.0f));
+	m_light->SetAmbientColor(XMFLOAT4(0.15f, 0.15f, 0.15f, 1.0f));
+	m_light->SetDiffuseColor(XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
+	m_light->SetLookAt(XMFLOAT3(0.0f, 0.0f, 10.0f));
+	m_light->SetSpecularColor(XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
+	m_light->SetSpecularPower(1000.f);
+	m_light->GenerateProjectionMatrix(RenderSettings::ScreenDepth, RenderSettings::ScreenNear);
 
 
-		// 렌더링을 텍스처 오브젝트에 생성한다.
-	m_RenderTexture = new RenderTextureClass;
-	if (!m_RenderTexture)
+	Engine::Rendering::SoftShadowPipelineConfig shadowPipelineConfig{};
+	shadowPipelineConfig.shadowMapWidth = m_sceneDefinition.shadowMap.width;
+	shadowPipelineConfig.shadowMapHeight = m_sceneDefinition.shadowMap.height;
+	shadowPipelineConfig.screenDepth = RenderSettings::ScreenDepth;
+	shadowPipelineConfig.screenNear = RenderSettings::ScreenNear;
+
+	m_softShadowPipeline = std::make_unique<Engine::Rendering::SoftShadowPipeline>();
+	if (!m_softShadowPipeline->Initialize(m_d3d->GetDevice(), hwnd, shadowPipelineConfig))
 	{
-		return false;
-	}
-
-	// 렌더링을 텍스처 오브젝트에 초기화한다.
-	result = m_RenderTexture->Initialize(m_D3D->GetDevice(), SHADOWMAP_WIDTH, SHADOWMAP_HEIGHT, SCREEN_DEPTH, SCREEN_NEAR);
-	if (!result)
-	{
-		MessageBox(hwnd, L"Could not initialize the render to texture object.", L"Error", MB_OK);
-		return false;
-	}
-
-	// 깊이 셰이더 개체를 만듭니다.
-	m_DepthShader = new DepthShaderClass;
-	if (!m_DepthShader)
-	{
-		return false;
-	}
-
-	// 깊이 셰이더 개체를 초기화합니다.
-	result = m_DepthShader->Initialize(m_D3D->GetDevice(), hwnd);
-	if (!result)
-	{
-		MessageBox(hwnd, L"Could not initialize the depth shader object.", L"Error", MB_OK);
-		return false;
-	}
-
-	// 흑백 렌더링을 텍스처 오브젝트에 생성한다.
-	m_BlackWhiteRenderTexture = new RenderTextureClass;
-	if (!m_BlackWhiteRenderTexture)
-	{
-		return false;
-	}
-
-	// 흑백 렌더링을 텍스처 오브젝트에 초기화한다.
-	result = m_BlackWhiteRenderTexture->Initialize(m_D3D->GetDevice(), SHADOWMAP_WIDTH, SHADOWMAP_HEIGHT, SCREEN_DEPTH, SCREEN_NEAR);
-	if (!result)
-	{
-		MessageBox(hwnd, L"Could not initialize the black and white render to texture object.", L"Error", MB_OK);
-		return false;
-	}
-
-	// 그림자 셰이더 개체를 만듭니다.
-	m_ShadowShader = new ShadowShaderClass;
-	if (!m_ShadowShader)
-	{
-		return false;
-	}
-
-	// 그림자 쉐이더 객체를 초기화합니다.
-	result = m_ShadowShader->Initialize(m_D3D->GetDevice(), hwnd);
-	if (!result)
-	{
-		MessageBox(hwnd, L"Could not initialize the shadow shader object.", L"Error", MB_OK);
-		return false;
-	}
-
-	// 크기를 샘플로 설정합니다.
-	int downSampleWidth = SHADOWMAP_WIDTH / 2;
-	int downSampleHeight = SHADOWMAP_HEIGHT / 2;
-
-	// 다운 샘플 렌더링을 텍스처 오브젝트에 생성한다.
-	m_DownSampleTexure = new RenderTextureClass;
-	if (!m_DownSampleTexure)
-	{
-		return false;
-	}
-
-	// 다운 샘플 렌더를 텍스처 오브젝트로 초기화한다.
-	result = m_DownSampleTexure->Initialize(m_D3D->GetDevice(), downSampleWidth, downSampleHeight, 100.0f, 1.0f);
-	if (!result)
-	{
-		MessageBox(hwnd, L"Could not initialize the down sample render to texture object.", L"Error", MB_OK);
-		return false;
-	}
-
-	// 작은 ortho 윈도우 객체를 만듭니다.
-	m_SmallWindow = new OrthoWindowClass;
-	if (!m_SmallWindow)
-	{
-		return false;
-	}
-
-	// 작은 ortho 윈도우 객체를 초기화합니다.
-	result = m_SmallWindow->Initialize(m_D3D->GetDevice(), downSampleWidth, downSampleHeight);
-	if (!result)
-	{
-		MessageBox(hwnd, L"Could not initialize the small ortho window object.", L"Error", MB_OK);
-		return false;
-	}
-
-	// 텍스처 객체에 수평 블러 렌더링을 만듭니다.
-	m_HorizontalBlurTexture = new RenderTextureClass;
-	if (!m_HorizontalBlurTexture)
-	{
-		return false;
-	}
-
-	// 텍스처 객체에 수평 블러 렌더링을 초기화합니다.
-	result = m_HorizontalBlurTexture->Initialize(m_D3D->GetDevice(), downSampleWidth, downSampleHeight, SCREEN_DEPTH, 0.1f);
-	if (!result)
-	{
-		MessageBox(hwnd, L"Could not initialize the horizontal blur render to texture object.", L"Error", MB_OK);
-		return false;
-	}
-
-	// 수평 블러 쉐이더 객체를 만듭니다.
-	m_HorizontalBlurShader = new HorizontalBlurShaderClass;
-	if (!m_HorizontalBlurShader)
-	{
-		return false;
-	}
-
-	// 수평 블러 쉐이더 객체를 초기화합니다.
-	result = m_HorizontalBlurShader->Initialize(m_D3D->GetDevice(), hwnd);
-	if (!result)
-	{
-		MessageBox(hwnd, L"Could not initialize the horizontal blur shader object.", L"Error", MB_OK);
-		return false;
-	}
-
-	// 텍스처 오브젝트에 수직 블러 렌더를 만듭니다.
-	m_VerticalBlurTexture = new RenderTextureClass;
-	if (!m_VerticalBlurTexture)
-	{
-		return false;
-	}
-
-	// 텍스처 오브젝트에 수직 블러 렌더를 초기화합니다.
-	result = m_VerticalBlurTexture->Initialize(m_D3D->GetDevice(), downSampleWidth, downSampleHeight, SCREEN_DEPTH, 0.1f);
-	if (!result)
-	{
-		MessageBox(hwnd, L"Could not initialize the vertical blur render to texture object.", L"Error", MB_OK);
-		return false;
-	}
-
-	// 수직 블러 셰이더 오브젝트를 생성한다.
-	m_VerticalBlurShader = new VerticalBlurShaderClass;
-	if (!m_VerticalBlurShader)
-	{
-		return false;
-	}
-
-	// 수직 블러 쉐이더 객체를 초기화합니다.
-	result = m_VerticalBlurShader->Initialize(m_D3D->GetDevice(), hwnd);
-	if (!result)
-	{
-		MessageBox(hwnd, L"Could not initialize the vertical blur shader object.", L"Error", MB_OK);
-		return false;
-	}
-
-	// 텍스쳐 객체에 업 샘플 렌더를 생성한다.
-	m_UpSampleTexure = new RenderTextureClass;
-	if (!m_UpSampleTexure)
-	{
-		return false;
-	}
-
-	// up 샘플 렌더를 텍스처 오브젝트로 초기화한다.
-	result = m_UpSampleTexure->Initialize(m_D3D->GetDevice(), SHADOWMAP_WIDTH, SHADOWMAP_HEIGHT, SCREEN_DEPTH, 0.1f);
-	if (!result)
-	{
-		MessageBox(hwnd, L"Could not initialize the up sample render to texture object.", L"Error", MB_OK);
-		return false;
-	}
-
-	// 전체 화면 ortho window 객체를 만듭니다.
-	m_FullScreenWindow = new OrthoWindowClass;
-	if (!m_FullScreenWindow)
-	{
-		return false;
-	}
-
-	// 전체 화면 ortho window 객체를 초기화합니다.
-	result = m_FullScreenWindow->Initialize(m_D3D->GetDevice(), SHADOWMAP_WIDTH, SHADOWMAP_HEIGHT);
-	if (!result)
-	{
-		MessageBox(hwnd, L"Could not initialize the full screen ortho window object.", L"Error", MB_OK);
-		return false;
-	}
-
-	// 부드러운 그림자 쉐이더 객체를 만듭니다.
-	m_SoftShadowShader = new SoftShadowShaderClass;
-	if (!m_SoftShadowShader)
-	{
-		return false;
-	}
-
-	// 부드러운 그림자 쉐이더 객체를 초기화합니다.
-	result = m_SoftShadowShader->Initialize(m_D3D->GetDevice(), hwnd);
-	if (!result)
-	{
-		MessageBox(hwnd, L"Could not initialize the soft shadow shader object.", L"Error", MB_OK);
 		return false;
 	}
 
 	// 스카이 돔 객체를 생성합니다.
-	m_SkyDome = new SkyDomeClass;
-	if (!m_SkyDome)
+	m_skyDome = Engine::MakeScopedResource<SkyDomeClass>();
+	if (!m_skyDome)
 	{
 		return false;
 	}
 
 	// 스카이 돔 객체를 초기화 합니다.
-	result = m_SkyDome->Initialize(m_D3D->GetDevice());
+	result = m_skyDome->Initialize(m_d3d->GetDevice());
 	if (!result)
 	{
 		MessageBox(hwnd, L"Could not initialize the sky dome object.", L"Error", MB_OK);
 		return false;
 	}
 	else{
-		wholeObj++;
-		wholePoly += m_SkyDome->GetIndexCount();
+		m_objectCount++;
+		m_polygonCount += static_cast<unsigned int>(m_skyDome->GetIndexCount() / 3);
 	}
 
 	// 스카이 돔 쉐이더 객체를 생성합니다.
-	m_SkyDomeShader = new SkyDomeShaderClass;
-	if (!m_SkyDomeShader)
+	m_skyDomeShader = Engine::MakeScopedResource<SkyDomeShaderClass>();
+	if (!m_skyDomeShader)
 	{
 		return false;
 	}
 
 	// 스카이 돔 쉐이더 객체를 초기화 합니다.
-	result = m_SkyDomeShader->Initialize(m_D3D->GetDevice(), hwnd);
+	result = m_skyDomeShader->Initialize(m_d3d->GetDevice(), hwnd);
 	if (!result)
 	{
 		MessageBox(hwnd, L"Could not initialize the sky dome shader object.", L"Error", MB_OK);
@@ -543,14 +328,17 @@ bool GraphicsClass::Initialize(int screenWidth, int screenHeight, HWND hwnd, HIN
 	}
 
 	// 단풍 객체를 생성합니다.
-	m_Foliage = new FoliageClass;
-	if (!m_Foliage)
+	m_foliage = Engine::MakeScopedResource<FoliageClass>();
+	if (!m_foliage)
 	{
 		return false;
 	}
 
 	// 단풍 객체를 초기화 합니다.
-	result = m_Foliage->Initialize(m_D3D->GetDevice(), L"./data/grass.dds", 2000);
+	result = m_foliage->Initialize(
+		m_d3d->GetDevice(),
+		m_sceneDefinition.foliage.texturePath.c_str(),
+		m_sceneDefinition.foliage.count);
 	if (!result)
 	{
 		MessageBox(hwnd, L"Could not initialize the foliage object.", L"Error", MB_OK);
@@ -559,14 +347,14 @@ bool GraphicsClass::Initialize(int screenWidth, int screenHeight, HWND hwnd, HIN
 
 
 	// 단풍 쉐이더 개체를 만듭니다.
-	m_FoliageShader = new FoliageShaderClass;
-	if (!m_FoliageShader)
+	m_foliageShader = Engine::MakeScopedResource<FoliageShaderClass>();
+	if (!m_foliageShader)
 	{
 		return false;
 	}
 
 	// 단풍 쉐이더 개체를 초기화합니다.
-	result = m_FoliageShader->Initialize(m_D3D->GetDevice(), hwnd);
+	result = m_foliageShader->Initialize(m_d3d->GetDevice(), hwnd);
 	if (!result)
 	{
 		MessageBox(hwnd, L"Could not initialize the foliage shader object.", L"Error", MB_OK);
@@ -574,14 +362,18 @@ bool GraphicsClass::Initialize(int screenWidth, int screenHeight, HWND hwnd, HIN
 	}
 
 	// Create the sound object.
-	m_Sound = new SoundClass;
-	if (!m_Sound)
+	m_sound = Engine::MakeScopedResource<SoundClass>();
+	if (!m_sound)
 	{
 		return false;
 	}
 
 	// Initialize the sound object.
-	if (!m_Sound->Initialize(hwnd))
+	if (!m_sound->Initialize(
+		hwnd,
+		m_sceneDefinition.audio.startupSfxPath.c_str(),
+		m_sceneDefinition.audio.bgmPath.c_str(),
+		m_sceneDefinition.audio.actionSfxPath.c_str()))
 	{
 		MessageBox(hwnd, L"Could not initialize Direct Sound.", L"Error", MB_OK);
 		return false;
@@ -591,183 +383,93 @@ bool GraphicsClass::Initialize(int screenWidth, int screenHeight, HWND hwnd, HIN
 }
 
 
-void GraphicsClass::Shutdown()
+void GraphicsClass::Shutdown() noexcept
 {
-	// 공통 해제 유틸리티로 중복 제거
-	auto safeShutdownDelete = [](auto*& p) {
-		if (p) { p->Shutdown(); delete p; p = nullptr; }
-	};
-	auto safeDelete = [](auto*& p) {
-		if (p) { delete p; p = nullptr; }
-	};
+	// Explicit ordering keeps every device-dependent object alive until it has
+	// released its own GPU resources. Repeated calls are safe.
+	m_foliageShader.reset();
+	m_foliage.reset();
+	m_crosshairs.clear();
+	m_fireShader.reset();
+	m_fireModel.reset();
+	m_mouseCursor.reset();
+	m_sound.reset();
+	m_cameraController.reset();
+	m_input.reset();
+	m_softShadowPipeline.reset();
+	m_skyDomeShader.reset();
+	m_skyDome.reset();
+	m_light.reset();
+	m_terrain.reset();
+	m_text.reset();
+	m_textureShader.reset();
+	m_gameObjects.clear();
+	m_camera.reset();
+	m_d3d.reset();
 
-	// 단풍 쉐이더 객체를 해제합니다.
-	safeShutdownDelete(m_FoliageShader);
-
-	// 단풍 객체를 해제합니다.
-	safeShutdownDelete(m_Foliage);
-
-	for (auto& crosshair : m_Crosshairs)
-	{
-		if (crosshair)
-		{
-			crosshair->Shutdown();
-			delete crosshair;
-			crosshair = nullptr;
-		}
-	}
-	m_Crosshairs.clear();
-
-	// fire shader 객체를 해제한다.
-	safeShutdownDelete(m_FireShader);
-
-	// 모델 객체를 해제합니다.
-	safeShutdownDelete(m_ModelForFire);
-
-	// 비트맵 객체를 해제합니다.
-	safeShutdownDelete(m_MouseCursor);
-
-	// Release the sound object.
-	safeShutdownDelete(m_Sound);
-
-	// 입력 객체를 해제합니다.
-	safeShutdownDelete(m_Input);
-
-	// 부드러운 그림자 쉐이더 객체를 해제한다.
-	safeShutdownDelete(m_SoftShadowShader);
-
-	// 전체 화면 ortho window 객체를 해제합니다.
-	safeShutdownDelete(m_FullScreenWindow);
-
-	// up 샘플 렌더를 텍스쳐 객체로 릴리즈한다.
-	safeShutdownDelete(m_UpSampleTexure);
-
-	// 수직 블러 쉐이더 객체를 해제한다.
-	safeShutdownDelete(m_VerticalBlurShader);
-
-	// 수직 블러 렌더를 텍스처 객체에 놓습니다.
-	safeShutdownDelete(m_VerticalBlurTexture);
-
-	// 수평 블러 쉐이더 객체를 해제합니다.
-	safeShutdownDelete(m_HorizontalBlurShader);
-
-	// 수평 블러 렌더를 텍스처 객체에 놓습니다.
-	safeShutdownDelete(m_HorizontalBlurTexture);
-
-	// 작은 ortho 윈도우 객체를 놓습니다.
-	safeShutdownDelete(m_SmallWindow);
-
-	// 다운 샘플 렌더를 텍스쳐 객체로 릴리즈한다.
-	safeShutdownDelete(m_DownSampleTexure);
-
-	// 흑백 렌더링을 텍스처로 놓습니다.
-	safeShutdownDelete(m_BlackWhiteRenderTexture);
-
-	// 스카이 돔 쉐이더 객체를 해제합니다.
-	safeShutdownDelete(m_SkyDomeShader);
-
-	// 스카이 돔 객체를 해제합니다.
-	safeShutdownDelete(m_SkyDome);
-
-	// 그림자 쉐이더 객체를 해제합니다.
-	safeShutdownDelete(m_ShadowShader);
-
-	// 깊이 셰이더 개체를 해제합니다.
-	safeShutdownDelete(m_DepthShader);
-
-	// 렌더 투 텍스쳐 객체를 해제합니다.
-	safeShutdownDelete(m_RenderTexture);
-
-	// 조명 객체를 해제합니다.
-	safeDelete(m_Light);
-
-	// 지형 쉐이더 객체를 해제합니다.
-	safeShutdownDelete(m_TerrainShader);
-
-	// 지형 객체를 해제합니다.
-	safeShutdownDelete(m_Terrain);
-
-	// Release the texture shader object.
-	safeShutdownDelete(m_TextureShader);
-
-	for (int i = 0; i < MAX_OBJS; i++)
-	{
-		// Release the model objects.
-		if (i < static_cast<int>(m_Models.size()) && m_Models[i])
-		{
-			m_Models[i]->Shutdown();
-			delete m_Models[i];
-			m_Models[i] = nullptr;
-		}
-
-	}
-	m_Models.clear();
-
-	// Release the camera object.
-	safeDelete(m_Camera);
-
-	// Release the D3D object.
-	if(m_D3D)
-	{
-		m_D3D->Shutdown();
-		delete m_D3D;
-		m_D3D = nullptr;
-	}
-
-	// Release the light shader object.
-	safeShutdownDelete(m_LightShader);
-
-	return;
+	m_objectCount = 0;
+	m_polygonCount = 0;
 }
 
 
-bool GraphicsClass::Frame(int fps, int cpu, float frameTime)
+Engine::UpdateResult GraphicsClass::Update(const Engine::FrameContext& frame)
 {
-	bool result;
+	return UpdateScene(frame);
+}
 
-	static float rotation = 0.0f;
-	static float lightPositionX = -5.0f;
-
-	
-	switch (currentStage)
+bool GraphicsClass::Render(const Engine::FrameContext& frame)
+{
+	if (!RenderScene(frame.deltaMilliseconds))
 	{
-	case StageEnum::Title:
+		return false;
+	}
+	return m_d3d->EndScene();
+}
 
-		if (!m_Text->SetGoalDescription(m_D3D->GetDeviceContext()))
+Engine::UpdateResult GraphicsClass::UpdateScene(const Engine::FrameContext& frame)
+{
+	const float frameTime = frame.deltaMilliseconds;
+	const Engine::UpdateResult inputResult = HandleInput(frameTime);
+	if (inputResult != Engine::UpdateResult::Continue)
+	{
+		return inputResult;
+	}
+
+	switch (m_stage)
+	{
+	case Stage::Title:
+		if (!m_text->SetGoalDescription(m_d3d->GetDeviceContext()))
 		{
-			return false;
+			return Engine::UpdateResult::Failure;
 		}
 		break;
 
-	case StageEnum::Stage:
+	case Stage::Hunt:
+		m_sound->PlaySoundForBGM();
 
-		m_Sound->PlaySoundForBGM();
-
-		// 초당 프레임 수를 설정합니다.
-		if (!m_Text->SetFps(fps, m_D3D->GetDeviceContext()))
+		if (!m_text->SetFps(frame.fps, m_d3d->GetDeviceContext()))
 		{
-			return false;
+			return Engine::UpdateResult::Failure;
 		}
 
-		// cpu 사용을 설정합니다.
-		if (!m_Text->SetCpu(cpu, m_D3D->GetDeviceContext()))
+		if (!m_text->SetCpu(frame.cpuPercentage, m_d3d->GetDeviceContext()))
 		{
-			return false;
+			return Engine::UpdateResult::Failure;
 		}
 
-		if (!m_Text->SetPolygons(wholePoly, m_D3D->GetDeviceContext()))
+		if (!m_text->SetPolygons(m_polygonCount, m_d3d->GetDeviceContext()))
 		{
-			return false;
+			return Engine::UpdateResult::Failure;
 		}
 
-		if (!m_Text->SetObject(wholeObj, m_D3D->GetDeviceContext()))
+		if (!m_text->SetObject(m_objectCount, m_d3d->GetDeviceContext()))
 		{
-			return false;
+			return Engine::UpdateResult::Failure;
 		}
 
-		if (!m_Text->SetSizeOfScreen(m_D3D->GetDeviceContext()))
+		if (!m_text->SetSizeOfScreen(m_d3d->GetDeviceContext()))
 		{
-			return false;
+			return Engine::UpdateResult::Failure;
 		}
 		break;
 
@@ -775,468 +477,83 @@ bool GraphicsClass::Frame(int fps, int cpu, float frameTime)
 		break;
 	}
 	
-
-
-	// 각 프레임의 조명 위치를 업데이트합니다.
-	lightPositionX += 0.01f * frameTime;
-	if (lightPositionX > 10.0f)
+	m_lightPositionX += 0.01f * frameTime;
+	if (m_lightPositionX > 10.0f)
 	{
-		lightPositionX = -10.0f;
+		m_lightPositionX = -10.0f;
 	}
+	m_light->SetPosition(XMFLOAT3(m_lightPositionX, 10.0f, -5.0f));
 
-	//빛의 위치를 ​​업데이트합니다.
-	m_Light->SetPosition(XMFLOAT3(lightPositionX, 10.0f, -5.0f));
-
-	// 카메라 위치를 얻는다.
-	XMFLOAT3 cameraPosition = m_Camera->GetPosition();
-	
-	// ✅ 카메라가 지형 높이를 따라가도록 설정
-	if (currentStage == StageEnum::Stage && m_Terrain)
+	if (m_stage == Stage::Hunt)
 	{
-		// 지형에서 현재 카메라 X, Z 위치의 높이를 가져옴
-		float terrainHeight = m_Terrain->GetHeight(cameraPosition.x, cameraPosition.z);
-		
-		// 카메라가 지형 위에 떠있도록 오프셋 추가 (예: 2 유닛)
+		XMFLOAT3 cameraPosition = m_camera->GetPosition();
+		const float terrainHeight = m_terrain->GetHeight(cameraPosition.x, cameraPosition.z);
 		const float cameraHeightOffset = 2.0f;
-		float desiredCameraHeight = terrainHeight + cameraHeightOffset;
-		
-		// ✅ 카메라를 항상 지형 높이에 맞춤 (위아래 모두)
-		m_Camera->SetPositionY(desiredCameraHeight);
-		cameraPosition.y = desiredCameraHeight; // 로컬 변수도 업데이트
-	}
-	
-	// 단풍에 대한 프레임 처리를 수행합니다 (지형 객체 전달).
-	result = m_Foliage->Frame(cameraPosition, m_D3D->GetDeviceContext(), frameTime * 0.01f, m_Terrain);
-	if (!result)
-	{
-		return false;
-	}
+		const float desiredCameraHeight = terrainHeight + cameraHeightOffset;
+		m_camera->SetPositionY(desiredCameraHeight);
+		m_camera->UpdateViewMatrix();
+		cameraPosition.y = desiredCameraHeight;
 
-	// 입력 처리를 처리합니다.
-	result = HandleInput(frameTime);
-	if (!result)
-	{
-		return false;
-	}
-	
-	// Render the graphics scene.
-	result = Render(frameTime);
-	if(!result)
-	{
-		return false;
-	}
-
-	return true;
-}
-
-bool GraphicsClass::HandleInput(float frameTime)
-{
-	int mouseX = 0;
-	int mouseY = 0;
-
-	// 입력 프레임 처리를 수행합니다.
-	if (m_Input->Frame(frameTime) == false)
-	{
-		return false;
-	}
-
-	// 사용자가 이스케이프를 눌렀을 때 응용 프로그램을 종료 할 것인지 확인합니다.
-	if (m_Input->IsEscapePressed() == true)
-	{
-		return false;
-	}
-
-	// 마우스 왼쪽 버튼이 눌러 졌는지 확인하십시오
-	if (m_Input->IsLeftMouseButtonDown() == true)
-	{
-		// 마우스로 화면을 클릭 한 다음 교차 테스트를 수행합니다
-		if (m_beginCheck == false)
+		if (!m_foliage->Frame(
+			cameraPosition,
+			m_d3d->GetDeviceContext(),
+			frameTime * 0.01f,
+			m_terrain.get()))
 		{
-			m_beginCheck = true;
-			
-			if (currentStage == StageEnum::Title) {
-				currentStage = StageEnum::Stage;
-				m_Text->ChangeRenderType(TextClass::RenderType::Stage);
-			}
-
-			else
-			{
-				TestIntersection();
-
-				m_Sound->PlaySoundForSFX();
-			}
-			
+			return Engine::UpdateResult::Failure;
 		}
 	}
 
-	// 왼쪽 마우스 단추가 놓여 졌는지 확인하십시오
-	if (m_Input->IsLeftMouseButtonDown() == false)
+	const Engine::Input::InputSnapshot& input = m_input->GetSnapshot();
+	if (input.primaryActionDown && !m_primaryActionWasDown)
 	{
-		m_beginCheck = false;
-	}
-
-
-	return true;
-}
-
-bool GraphicsClass::RenderSceneToTexture()
-{
-	XMMATRIX worldMatrix, lightViewMatrix, lightProjectionMatrix;
-
-	float posX = 0;
-	float posY = 0;
-	float posZ = 0;
-
-	float rotX = 0;
-	float rotY = 0;
-	float rotZ = 0;
-
-	float scaleX = 0;
-	float scaleY = 0;
-	float scaleZ = 0;
-
-	// 렌더링 대상을 렌더링에 맞게 설정합니다.
-	m_RenderTexture->SetRenderTarget(m_D3D->GetDeviceContext());
-
-	// 렌더링을 텍스처에 지웁니다.
-	m_RenderTexture->ClearRenderTarget(m_D3D->GetDeviceContext(), 0.0f, 0.0f, 0.0f, 1.0f);
-
-	// 조명의 위치에 따라 조명보기 행렬을 생성합니다.
-	m_Light->GenerateViewMatrix();
-
-	// d3d 객체에서 세계 행렬을 가져옵니다.
-	m_D3D->GetWorldMatrix(worldMatrix);
-
-	// 라이트 오브젝트에서 뷰 및 정사각형 매트릭스를 가져옵니다.
-	m_Light->GetViewMatrix(lightViewMatrix);
-	m_Light->GetProjectionMatrix(lightProjectionMatrix);
-
-
-	// 터레인 위치 설정
-	m_D3D->GetWorldMatrix(worldMatrix);
-	worldMatrix *= XMMatrixTranslation(-100, -3.0f, -100);
-
-	// 지형 버퍼를 렌더링 합니다.
-	m_Terrain->Render(m_D3D->GetDeviceContext());
-
-	bool result = m_DepthShader->Render(m_D3D->GetDeviceContext(), m_Terrain->GetIndexCount(), worldMatrix, lightViewMatrix, lightProjectionMatrix);
-	if (!result)
-	{
-		return false;
-	}
-
-	for (auto m_Model : m_Models)
-	{
-		if (!m_Model->isAlive()) continue;
-
-		m_D3D->GetWorldMatrix(worldMatrix);
-		m_Model->GetPosition(posX, posY, posZ);
-		m_Model->GetRotation(rotX, rotY, rotZ);
-		m_Model->GetScale(scaleX, scaleY, scaleZ);
-
-		worldMatrix *= XMMatrixScaling(scaleX, scaleY, scaleZ);
-		worldMatrix *= XMMatrixRotationRollPitchYaw(rotX, rotY, rotZ);
-		worldMatrix *= XMMatrixTranslation(posX, posY, posZ);
-
-		m_Model->Render(m_D3D->GetDeviceContext());
-		result = m_DepthShader->Render(m_D3D->GetDeviceContext(), m_Model->GetIndexCount(), worldMatrix, lightViewMatrix, lightProjectionMatrix);
-		if (!result)
+		if (m_stage == Stage::Title)
 		{
-			return false;
+			m_stage = Stage::Hunt;
+			m_text->ChangeRenderType(TextClass::RenderType::Stage);
+			m_sound->PlaySoundForBGM();
+		}
+		else
+		{
+			TestIntersection();
+			m_sound->PlaySoundForSFX();
 		}
 	}
+	m_primaryActionWasDown = input.primaryActionDown;
 
-	// 렌더링 대상을 원래의 백 버퍼로 다시 설정하고 렌더링에 대한 렌더링을 더 이상 다시 설정하지 않습니다.
-	m_D3D->SetBackBufferRenderTarget();
-
-	// 뷰포트를 원래대로 재설정
-	m_D3D->ResetViewport();
-
-	return true;
+	return Engine::UpdateResult::Continue;
 }
 
-bool GraphicsClass::RenderBlackAndWhiteShadows()
+Engine::UpdateResult GraphicsClass::HandleInput(float frameTime)
 {
-	XMMATRIX worldMatrix, viewMatrix, projectionMatrix;
-	XMMATRIX lightViewMatrix, lightProjectionMatrix;
-	float posX, posY, posZ;
-	float rotX, rotY, rotZ;
-	float scaleX, scaleY, scaleZ;
-	bool result;
-
-	XMMATRIX terrainMatrix;
-
-	// 렌더링 대상을 렌더링에 맞게 설정합니다.
-	m_BlackWhiteRenderTexture->SetRenderTarget(m_D3D->GetDeviceContext());
-
-	// 렌더링을 텍스처에 지웁니다.
-	m_BlackWhiteRenderTexture->ClearRenderTarget(m_D3D->GetDeviceContext(), 0.0f, 0.0f, 0.0f, 1.0f);
-
-	// 카메라의 위치에 따라 뷰 행렬을 생성합니다.
-	m_Camera->Render();
-
-	// 조명의 위치에 따라 조명보기 행렬을 생성합니다.
-	m_Light->GenerateViewMatrix();
-
-	// 카메라 및 d3d 객체에서 월드, 뷰 및 투영 행렬을 가져옵니다. 
-	m_Camera->GetViewMatrix(viewMatrix);
-	m_D3D->GetWorldMatrix(worldMatrix);
-	m_D3D->GetProjectionMatrix(projectionMatrix);
-
-	// 라이트 오브젝트로부터 라이트의 뷰와 투영 행렬을 가져옵니다. 
-	m_Light->GetViewMatrix(lightViewMatrix);
-	m_Light->GetProjectionMatrix(lightProjectionMatrix);
-
-	m_D3D->GetWorldMatrix(terrainMatrix);
-	terrainMatrix *= XMMatrixTranslation(-100, -3.0, -100);
-
-	// 지형 버퍼를 렌더링 합니다.
-	m_Terrain->Render(m_D3D->GetDeviceContext());
-	result = m_ShadowShader->Render(m_D3D->GetDeviceContext(), m_Terrain->GetIndexCount(), terrainMatrix, viewMatrix, projectionMatrix, lightViewMatrix,
-		lightProjectionMatrix, m_RenderTexture->GetShaderResourceView(), m_Light->GetPosition());
-	if (!result)
+	if (!m_input->Frame(frameTime))
 	{
-		return false;
+		return Engine::UpdateResult::Failure;
 	}
 
-	// 모델 렌더링
-	for (auto m_Model : m_Models)
+	const Engine::Input::InputSnapshot& input = m_input->GetSnapshot();
+	if (m_stage == Stage::Hunt)
 	{
-		if (!m_Model->isAlive()) continue;
-
-		m_D3D->GetWorldMatrix(worldMatrix);
-		m_Model->GetPosition(posX, posY, posZ);
-		m_Model->GetRotation(rotX, rotY, rotZ);
-		m_Model->GetScale(scaleX, scaleY, scaleZ);
-
-		worldMatrix *= XMMatrixScaling(scaleX, scaleY, scaleZ);
-		worldMatrix *= XMMatrixRotationRollPitchYaw(rotX, rotY, rotZ);
-		worldMatrix *= XMMatrixTranslation(posX, posY, posZ);
-
-		m_Model->Render(m_D3D->GetDeviceContext());
-		result = m_ShadowShader->Render(m_D3D->GetDeviceContext(), m_Model->GetIndexCount(), worldMatrix, viewMatrix, projectionMatrix, lightViewMatrix,
-			lightProjectionMatrix, m_RenderTexture->GetShaderResourceView(), m_Light->GetPosition());
-		if (!result)
-		{
-			return false;
-		}
+		m_cameraController->Update(*m_camera, input, frameTime);
 	}
 
-	// 렌더링 대상을 원래의 백 버퍼로 다시 설정하고 렌더링 대상을 더 이상 텍스처로 다시 설정하지 않습니다. 
-	m_D3D->SetBackBufferRenderTarget();
+	if (input.escapePressed)
+	{
+		return Engine::UpdateResult::ExitRequested;
+	}
 
-	// 뷰포트를 원본으로 다시 설정합니다. 
-	m_D3D->ResetViewport();
-
-	return true;
+	return Engine::UpdateResult::Continue;
 }
 
-
-bool GraphicsClass::DownSampleTexture()
+bool GraphicsClass::RenderScene(float frameTime)
 {
-	XMMATRIX worldMatrix, baseViewMatrix, orthoMatrix;
-	bool result;
+	[[maybe_unused]] auto restorePipeline = Engine::MakeScopeExit([this]() noexcept {
+		m_d3d->TurnOffAlphaBlending();
+		m_d3d->TurnZBufferOn();
+		m_d3d->TurnOnCulling();
+		m_d3d->DisableDepthTestingWithoutWrites();
+	});
 
-
-	// 렌더링 대상을 렌더링에 맞게 설정합니다. 
-	m_DownSampleTexure->SetRenderTarget(m_D3D->GetDeviceContext());
-
-	// 렌더링을 텍스처에 지웁니다. 
-	m_DownSampleTexure->ClearRenderTarget(m_D3D->GetDeviceContext(), 0.0f, 0.0f, 0.0f, 1.0f);
-
-	// 카메라의 위치에 따라 뷰 행렬을 생성합니다. 
-	m_Camera->Render();
-
-	// 카메라와 d3d 객체로부터 월드와 뷰 매트릭스를 얻는다. 
-	m_D3D->GetWorldMatrix(worldMatrix);
-	m_Camera->GetBaseViewMatrix(baseViewMatrix);
-
-	// 질감이 크기가 작기 때문에 렌더링에서 텍스처로 ortho 행렬을 가져옵니다. 
-m_DownSampleTexure->GetOrthoMatrix(orthoMatrix);
-
-	// 모든 2D 렌더링을 시작하려면 Z 버퍼를 끕니다. 
-	m_D3D->TurnZBufferOff();
-
-	// 드로잉을 준비하기 위해 그래픽 파이프 라인에 작은 ortho window 버텍스와 인덱스 버퍼를 배치합니다. 
-	m_SmallWindow->Render(m_D3D->GetDeviceContext());
-
-	// 텍스처 쉐이더를 사용하여 작은 ortho 창을 렌더링하고 씬의 텍스처를 텍스처 리소스로 렌더링합니다. 
-	result = m_TextureShader->Render(m_D3D->GetDeviceContext(), m_SmallWindow->GetIndexCount(), worldMatrix, baseViewMatrix, orthoMatrix,
-		m_BlackWhiteRenderTexture->GetShaderResourceView());
-	if (!result)
-	{
-		return false;
-	}
-
-	// 모든 2D 렌더링이 완료되었으므로 Z 버퍼를 다시 켜십시오. 
-	m_D3D->TurnZBufferOn();
-
-	// 렌더링 대상을 원래의 백 버퍼로 다시 설정하고 렌더링에 대한 렌더링을 더 이상 다시 설정하지 않습니다. 
-	m_D3D->SetBackBufferRenderTarget();
-
-	// 뷰포트를 원본으로 다시 설정합니다. 
-	m_D3D->ResetViewport();
-
-	return true;
-}
-
-
-bool GraphicsClass::RenderHorizontalBlurToTexture()
-{
-	XMMATRIX worldMatrix, baseViewMatrix, orthoMatrix;
-	float screenSizeX;
-	bool result;
-
-
-	// 수평 블러 쉐이더에서 사용될 float에 화면 폭을 저장합니다. 
-	screenSizeX = static_cast<float>(SHADOWMAP_WIDTH) / 2.0f;
-
-	// 렌더링 대상을 렌더링에 맞게 설정합니다. 
-	m_HorizontalBlurTexture->SetRenderTarget(m_D3D->GetDeviceContext());
-
-	// 렌더링을 텍스처에 지웁니다. 
-	m_HorizontalBlurTexture->ClearRenderTarget(m_D3D->GetDeviceContext(), 0.0f, 0.0f, 0.0f, 1.0f);
-
-	// 카메라의 위치에 따라 뷰 행렬을 생성합니다. 
-	m_Camera->Render();
-
-	// 카메라와 d3d 객체로부터 월드와 뷰 매트릭스를 얻는다.
-	m_Camera->GetBaseViewMatrix(baseViewMatrix);
-	m_D3D->GetWorldMatrix(worldMatrix);
-
-	// 텍스쳐가 다른 차원을 가지므로 렌더링에서 오쏘 (ortho) 행렬을 텍스처로 가져옵니다. 
-	m_HorizontalBlurTexture->GetOrthoMatrix(orthoMatrix);
-
-	// 모든 2D 렌더링을 시작하려면 Z 버퍼를 끕니다. 
-	m_D3D->TurnZBufferOff();
-
-	// 드로잉을 준비하기 위해 그래픽 파이프 라인에 작은 ortho window 버텍스와 인덱스 버퍼를 놓습니다. 
-	m_SmallWindow->Render(m_D3D->GetDeviceContext());
-
-	// horizontal blur shader와 down sampled render를 사용하여 작은 ortho 윈도우를 텍스처 리소스로 렌더링합니다. 
-	result = m_HorizontalBlurShader->Render(m_D3D->GetDeviceContext(), m_SmallWindow->GetIndexCount(), worldMatrix, baseViewMatrix, orthoMatrix,
-		m_DownSampleTexure->GetShaderResourceView(), screenSizeX);
-	if (!result)
-	{
-		return false;
-	}
-
-	// 모든 2D 렌더링이 완료되었으므로 Z 버퍼를 다시 켜십시오.
-	m_D3D->TurnZBufferOn();
-
-	// 렌더링 대상을 원래의 백 버퍼로 다시 설정하고 렌더링에 대한 렌더링을 더 이상 다시 설정하지 않습니다. 
-	m_D3D->SetBackBufferRenderTarget();
-
-	// 뷰포트를 원본으로 다시 설정합니다. 
-	m_D3D->ResetViewport();
-
-	return true;
-}
-
-
-bool GraphicsClass::RenderVerticalBlurToTexture()
-{
-	XMMATRIX worldMatrix, baseViewMatrix, orthoMatrix;
-	float screenSizeY;
-	bool result;
-
-
-	// 수직 블러 셰이더에서 사용되는 부동 소수점에 화면 높이를 저장합니다. 
-	screenSizeY = static_cast<float>(SHADOWMAP_HEIGHT) / 2.0f;
-
-	// 렌더링 대상을 렌더링에 맞게 설정합니다. 
-	m_VerticalBlurTexture->SetRenderTarget(m_D3D->GetDeviceContext());
-
-	// 렌더링을 텍스처에 지웁니다. 
-	m_VerticalBlurTexture->ClearRenderTarget(m_D3D->GetDeviceContext(), 0.0f, 0.0f, 0.0f, 1.0f);
-
-	// 카메라의 위치에 따라 뷰 행렬을 생성합니다. 
-	m_Camera->Render();
-
-	// 카메라와 d3d 객체로부터 월드와 뷰 매트릭스를 얻는다.
-	m_Camera->GetBaseViewMatrix(baseViewMatrix);
-	m_D3D->GetWorldMatrix(worldMatrix);
-
-	// 텍스쳐가 다른 차원을 가지므로 렌더링에서 오쏘 (ortho) 행렬을 텍스처로 가져옵니다. 
-	m_VerticalBlurTexture->GetOrthoMatrix(orthoMatrix);
-
-	// 모든 2D 렌더링을 시작하려면 Z 버퍼를 끕니다. 
-	m_D3D->TurnZBufferOff();
-
-	// 드로잉을 준비하기 위해 그래픽 파이프 라인에 작은 ortho window 버텍스와 인덱스 버퍼를 놓습니다. 
-	m_SmallWindow->Render(m_D3D->GetDeviceContext());
-
-	// 수직 블러 쉐이더와 수평 블러 링을 사용하여 작은 ortho 윈도우를 텍스처 리소스로 렌더합니다. 
-	result = m_VerticalBlurShader->Render(m_D3D->GetDeviceContext(), m_SmallWindow->GetIndexCount(), worldMatrix, baseViewMatrix, orthoMatrix,
-		m_HorizontalBlurTexture->GetShaderResourceView(), screenSizeY);
-	if (!result)
-	{
-		return false;
-	}
-
-	// 모든 2D 렌더링이 완료되었으므로 Z 버퍼를 다시 켜십시오. 
-	m_D3D->TurnZBufferOn();
-
-	// 렌더링 대상을 원래의 백 버퍼로 다시 설정하고 렌더링에 대한 렌더링을 더 이상 다시 설정하지 않습니다. 
-	m_D3D->SetBackBufferRenderTarget();
-
-	// 뷰포트를 원본으로 다시 설정합니다. 
-	m_D3D->ResetViewport();
-
-	return true;
-}
-
-
-bool GraphicsClass::UpSampleTexture()
-{
-	XMMATRIX worldMatrix, baseViewMatrix, orthoMatrix;
-	bool result;
-
-
-	// 렌더링 대상을 렌더링에 맞게 설정합니다. 
-	m_UpSampleTexure->SetRenderTarget(m_D3D->GetDeviceContext());
-
-	// 렌더링을 텍스처에 지웁니다. 
-	m_UpSampleTexure->ClearRenderTarget(m_D3D->GetDeviceContext(), 0.0f, 0.0f, 0.0f, 1.0f);
-
-	// 카메라의 위치에 따라 뷰 행렬을 생성합니다. 
-	m_Camera->Render();
-
-	// 카메라와 d3d 객체로부터 월드와 뷰 매트릭스를 얻는다. 
-	m_Camera->GetBaseViewMatrix(baseViewMatrix);
-	m_D3D->GetWorldMatrix(worldMatrix);
-
-	// 텍스쳐가 다른 차원을 가지므로 렌더링에서 오쏘 (ortho) 행렬을 텍스처로 가져옵니다.
-	m_UpSampleTexure->GetOrthoMatrix(orthoMatrix);
-
-	// 모든 2D 렌더링을 시작하려면 Z 버퍼를 끕니다. 
-	m_D3D->TurnZBufferOff();
-
-	// 그래픽 파이프 라인에 전체 화면 직교 윈도우 버텍스와 인덱스 버퍼를 배치하여 그리기를 준비합니다. 
-	m_FullScreenWindow->Render(m_D3D->GetDeviceContext());
-
-	// 텍스처 쉐이더와 텍스처 리소스에 대한 작은 크기의 최종 흐리게 렌더링을 사용하여 전체 화면 ortho 창을 렌더링합니다. 
-	result = m_TextureShader->Render(m_D3D->GetDeviceContext(), m_FullScreenWindow->GetIndexCount(), worldMatrix, baseViewMatrix, orthoMatrix,
-		m_VerticalBlurTexture->GetShaderResourceView());
-	if (!result)
-	{
-		return false;
-	}
-
-	// 모든 2D 렌더링이 완료되었으므로 Z 버퍼를 다시 켜십시오. 
-	m_D3D->TurnZBufferOn();
-
-	// 렌더링 대상을 원래의 백 버퍼로 다시 설정하고 렌더링에 대한 렌더링을 더 이상 다시 설정하지 않습니다. 
-	m_D3D->SetBackBufferRenderTarget();
-
-	// 뷰포트를 원본으로 다시 설정합니다. 
-	m_D3D->ResetViewport();
-
-	return true;
-}
-
-bool GraphicsClass::Render(float frameTime)
-{
 	XMMATRIX worldMatrix, viewMatrix, projectionMatrix, orthoMatrix;
 	XMMATRIX terrainMatrix;
 
@@ -1246,10 +563,6 @@ bool GraphicsClass::Render(float frameTime)
 	float posY = 0;
 	float posZ = 0;
 
-	float rotX = 0;
-	float rotY = 0;
-	float rotZ = 0;
-
 	float scaleX = 0;
 	float scaleY = 0;
 	float scaleZ = 0;
@@ -1258,14 +571,11 @@ bool GraphicsClass::Render(float frameTime)
 
 	bool result;
 
-	static float frameTimer = 0.0f;
-
-
 	// 프레임 시간 카운터를 증가시킵니다.
-	frameTimer += frameTime * 0.001f;
-	if (frameTimer > 1000.0f)
+	m_fireAnimationTime += frameTime * 0.001f;
+	if (m_fireAnimationTime > 1000.0f)
 	{
-		frameTimer = 0.0f;
+		m_fireAnimationTime = 0.0f;
 	}
 
 	// 세 가지 다른 노이즈 텍스처에 대해 세 가지 스크롤 속도를 설정합니다.
@@ -1285,256 +595,239 @@ bool GraphicsClass::Render(float frameTime)
 
 
 
-	switch (currentStage)
+	switch (m_stage)
 	{
-		case StageEnum::Title:
+		case Stage::Title:
 			{
 				// Clear the buffers to begin the scene.
-				m_D3D->BeginScene(0.0f, 0.0f, 0.0f, 1.0f);
+				m_d3d->BeginScene(0.0f, 0.0f, 0.0f, 1.0f);
 				
 				// Generate the view matrix based on the camera's position.
-				m_Camera->Render();
+				m_camera->UpdateViewMatrix();
 
 				// 조명의 위치에 따라 조명보기 행렬을 생성합니다.
-				m_Light->GenerateViewMatrix();
+				m_light->GenerateViewMatrix();
 
 				// Get the world, view, and projection matrices from the camera and d3d objects.
-				m_D3D->GetWorldMatrix(worldMatrix);
-				m_Camera->GetViewMatrix(viewMatrix);
-				m_D3D->GetWorldMatrix(terrainMatrix);
+				m_d3d->GetWorldMatrix(worldMatrix);
+				m_camera->GetViewMatrix(viewMatrix);
+				m_d3d->GetWorldMatrix(terrainMatrix);
 
-				m_D3D->GetProjectionMatrix(projectionMatrix);
-				m_D3D->GetOrthoMatrix(orthoMatrix);
+				m_d3d->GetProjectionMatrix(projectionMatrix);
+				m_d3d->GetOrthoMatrix(orthoMatrix);
 
-				m_D3D->GetWorldMatrix(worldMatrix);
+				m_d3d->GetWorldMatrix(worldMatrix);
 
-				worldMatrix *= XMMatrixScaling(5.5f, 5.5f, 1.f);
-				m_Camera->GetBaseViewMatrix(viewMatrix);
+				const auto& fireScale = m_sceneDefinition.fire.scale;
+				worldMatrix *= XMMatrixScaling(fireScale.x, fireScale.y, fireScale.z);
+				m_camera->GetBaseViewMatrix(viewMatrix);
 
 				// 화재 투명도의 알파 블렌드를 켭니다.
-				m_D3D->TurnOnAlphaBlending();
+				m_d3d->TurnOnAlphaBlending();
 
 				// 정사각형 모델의 정점과 인덱스 버퍼를 그래픽 파이프 라인에 배치하여 그리기를 준비합니다.
-				m_ModelForFire->Render(m_D3D->GetDeviceContext());
+				m_fireModel->Render(m_d3d->GetDeviceContext());
 
 				// 불 쉐이더를 사용하여 사각형 모델을 렌더링합니다.
-				result = m_FireShader->Render(m_D3D->GetDeviceContext(), m_ModelForFire->GetIndexCount(), worldMatrix, viewMatrix, projectionMatrix,
-					m_ModelForFire->GetTexture1(), m_ModelForFire->GetTexture2(), m_ModelForFire->GetTexture3(), frameTimer, scrollSpeeds,
+				result = m_fireShader->Render(m_d3d->GetDeviceContext(), m_fireModel->GetIndexCount(), worldMatrix, viewMatrix, projectionMatrix,
+					m_fireModel->GetTexture1(), m_fireModel->GetTexture2(), m_fireModel->GetTexture3(), m_fireAnimationTime, scrollSpeeds,
 					scales, distortion1, distortion2, distortion3, distortionScale, distortionBias);
 				if (!result)
 				{
 					return false;
 				}
 
-				m_D3D->TurnOffAlphaBlending();
+				m_d3d->TurnOffAlphaBlending();
 
 
-				m_D3D->GetWorldMatrix(worldMatrix);
+				m_d3d->GetWorldMatrix(worldMatrix);
 				// 화면 내 위치 변환을 막기 위해 BaseViewMatrix로 전환
-				m_Camera->GetBaseViewMatrix(viewMatrix);
+				m_camera->GetBaseViewMatrix(viewMatrix);
 				// Turn off the Z buffer to begin all 2D rendering.
-				m_D3D->TurnZBufferOff();
+				m_d3d->TurnZBufferOff();
 
 				// Turn on the alpha blending before rendering the text.
-				m_D3D->TurnOnAlphaBlending();
+				m_d3d->TurnOnAlphaBlending();
 
 				// 입력 OBJECT에서 마우스의 위치를 ​​가져옵니다.
 				int mouseX = 0;
 				int mouseY = 0;
-				m_Input->GetMouseLocation(mouseX, mouseY);
+				m_input->GetMouseLocation(mouseX, mouseY);
 
-				result = m_MouseCursor->Render(m_D3D->GetDeviceContext(), mouseX, mouseY);
+				result = m_mouseCursor->Render(m_d3d->GetDeviceContext(), mouseX, mouseY);
 				// 텍스처 셰이더로 마우스 커서를 렌더링합니다.
 				if (!result)
 				{
 					return false;
 				}
 
-				result = m_TextureShader->Render(m_D3D->GetDeviceContext(), m_MouseCursor->GetIndexCount(), worldMatrix, viewMatrix, orthoMatrix, m_MouseCursor->GetTexture());
+				result = m_textureShader->Render(m_d3d->GetDeviceContext(), m_mouseCursor->GetIndexCount(), worldMatrix, viewMatrix, orthoMatrix, m_mouseCursor->GetTexture());
 				if (!result)
 				{
 					return false;
 				}
 
 				// Render the text strings.
-				result = m_Text->Render(m_D3D->GetDeviceContext(), worldMatrix, orthoMatrix);
+				result = m_text->Render(m_d3d->GetDeviceContext(), worldMatrix, orthoMatrix);
 				if (!result)
 				{
 					return false;
 				}
 
 				// Turn off alpha blending after rendering the text.
-				m_D3D->TurnOffAlphaBlending();
+				m_d3d->TurnOffAlphaBlending();
 
-				// Turn the Z buffer back on now that all 2D rendering has completed.
-				m_D3D->EndScene();
+				// Restore the state before the outer application presents the frame.
+				m_d3d->TurnZBufferOn();
 
 				return true;
 			}
 
-		case StageEnum::Stage:
+		case Stage::Hunt:
 			{
-				// 먼저 장면을 텍스처로 렌더링합니다.
-				result = RenderSceneToTexture();
-				if (!result)
-				{
-					return false;
-				}
-
-				// 다음으로 그림자가 있는 장면을 흑백으로 렌더링합니다. 
-				result = RenderBlackAndWhiteShadows();
-				if (!result)
-				{
-					return false;
-				}
-
-				// 그런 다음 흑백 씬 텍스처를 샘플링합니다. 
-				result = DownSampleTexture();
-				if (!result)
-				{
-					return false;
-				}
-
-				// 다운 샘플링 된 텍스처에 수평 블러를 수행합니다. 
-				result = RenderHorizontalBlurToTexture();
-				if (!result)
-				{
-					return false;
-				}
-
-				// 이제 텍스처에 수직 블러를 수행합니다. 
-				result = RenderVerticalBlurToTexture();
-				if (!result)
-				{
-					return false;
-				}
-
-				// 최종적으로 부드러운 그림자 쉐이더에서 사용할 수있는 텍스처에 대한 최종 흐린 렌더링 샘플을 샘플링합니다. 
-				result = UpSampleTexture();
-				if (!result)
+				const Engine::Rendering::SoftShadowPipelineFrame softShadowFrame{
+					*m_d3d,
+					*m_camera,
+					*m_light,
+					*m_terrain,
+					m_gameObjects,
+					*m_textureShader,
+					m_sceneDefinition
+				};
+				if (!m_softShadowPipeline->Execute(softShadowFrame))
 				{
 					return false;
 				}
 
 				// Clear the buffers to begin the scene.
-				m_D3D->BeginScene(0.0f, 0.0f, 0.0f, 1.0f);
+				m_d3d->BeginScene(0.0f, 0.0f, 0.0f, 1.0f);
 
 				// Generate the view matrix based on the camera's position.
-				m_Camera->Render();
+				m_camera->UpdateViewMatrix();
 
 				// 조명의 위치에 따라 조명보기 행렬을 생성합니다.
-				m_Light->GenerateViewMatrix();
+				m_light->GenerateViewMatrix();
 
 				// Get the world, view, and projection matrices from the camera and d3d objects.
-				m_D3D->GetWorldMatrix(worldMatrix);
-				m_Camera->GetViewMatrix(viewMatrix);
-				m_D3D->GetWorldMatrix(terrainMatrix);
+				m_d3d->GetWorldMatrix(worldMatrix);
+				m_camera->GetViewMatrix(viewMatrix);
+				m_d3d->GetWorldMatrix(terrainMatrix);
 
-				m_D3D->GetProjectionMatrix(projectionMatrix);
-				m_D3D->GetOrthoMatrix(orthoMatrix);
+				m_d3d->GetProjectionMatrix(projectionMatrix);
+				m_d3d->GetOrthoMatrix(orthoMatrix);
 
 				// 라이트 오브젝트로부터 라이트의 뷰와 투영 행렬을 가져옵니다.
-				m_Light->GetViewMatrix(lightViewMatrix);
-				m_Light->GetProjectionMatrix(lightProjectionMatrix);
+				m_light->GetViewMatrix(lightViewMatrix);
+				m_light->GetProjectionMatrix(lightProjectionMatrix);
 
 
 				// 카메라 위치를 얻는다.
-				cameraPosition = m_Camera->GetPosition();
+				cameraPosition = m_camera->GetPosition();
 
 				// 스카이 돔을 카메라 위치를 중심으로 변환합니다.
 				worldMatrix *= XMMatrixTranslation(cameraPosition.x, cameraPosition.y, cameraPosition.z);
 
 				// 표면 컬링을 끕니다.
-				m_D3D->TurnOffCulling();
+				m_d3d->TurnOffCulling();
 
 				// Z 버퍼를 끈다.
-				m_D3D->TurnZBufferOff();
+				m_d3d->TurnZBufferOff();
 
 				// 스카이 돔 셰이더를 사용하여 하늘 돔을 렌더링합니다.
-				m_SkyDome->Render(m_D3D->GetDeviceContext());
+				m_skyDome->Render(m_d3d->GetDeviceContext());
 				
-				m_SkyDomeShader->Render(m_D3D->GetDeviceContext(), m_SkyDome->GetIndexCount(), worldMatrix, viewMatrix, projectionMatrix,
-					m_SkyDome->GetApexColor(), m_SkyDome->GetCenterColor());
+				if (!m_skyDomeShader->Render(
+					m_d3d->GetDeviceContext(),
+					m_skyDome->GetIndexCount(),
+					worldMatrix,
+					viewMatrix,
+					projectionMatrix,
+					m_skyDome->GetApexColor(),
+					m_skyDome->GetCenterColor()))
+				{
+					return false;
+				}
 
 				// Z 버퍼를 다시 켭니다.
-				m_D3D->TurnZBufferOn();
+				m_d3d->TurnZBufferOn();
 
 				// 다시 표면 컬링을 되돌립니다.
-				m_D3D->TurnOnCulling();
+				m_d3d->TurnOnCulling();
 
 				// 월드 행렬을 재설정합니다.
-				m_D3D->GetWorldMatrix(worldMatrix);
+				m_d3d->GetWorldMatrix(worldMatrix);
 
-				terrainMatrix *= XMMatrixTranslation(-100, -3.f, -100);
+				const auto& terrainOffset = m_sceneDefinition.terrain.worldOffset;
+				terrainMatrix *= XMMatrixTranslation(terrainOffset.x, terrainOffset.y, terrainOffset.z);
 
 				// 지형 버퍼를 렌더링 합니다.
-				m_Terrain->Render(m_D3D->GetDeviceContext());
+				m_terrain->Render(m_d3d->GetDeviceContext());
 
-				result = m_SoftShadowShader->Render(m_D3D->GetDeviceContext(), m_Terrain->GetIndexCount(), terrainMatrix, viewMatrix, projectionMatrix,
-					m_Terrain->GetTexture(), m_UpSampleTexure->GetShaderResourceView(), m_Light->GetDirection(),
-					m_Light->GetAmbientColor(), m_Light->GetDiffuseColor(), m_Light->GetPosition(), m_Light->GetSpecularColor(), m_Light->GetSpecularPower());
+				result = m_softShadowPipeline->RenderSurface(
+					m_d3d->GetDeviceContext(),
+					m_terrain->GetIndexCount(),
+					terrainMatrix,
+					viewMatrix,
+					projectionMatrix,
+					m_terrain->GetTexture(),
+					*m_light);
 				if (!result)
 				{
 					return false;
 				}
 
 
-				m_D3D->GetWorldMatrix(worldMatrix);
+				m_d3d->GetWorldMatrix(worldMatrix);
 
 				// ✅ 깊이 테스트 ON, 깊이 쓰기 OFF로 설정
 				// 지형에 의해 가려진 풀은 렌더링되지 않지만, 풀끼리는 올바르게 블렌딩됨
-				m_D3D->EnableDepthTestingWithoutWrites();
+				m_d3d->EnableDepthTestingWithoutWrites();
 
-				m_Foliage->GetPosition(posX, posY, posZ);
+				m_foliage->GetPosition(posX, posY, posZ);
 				worldMatrix = XMMatrixTranslation(posX, posY, posZ);
 
 				// 투명 켜기
-				m_D3D->TurnOnAlphaBlending();
+				m_d3d->TurnOnAlphaBlending();
 
 				// 단풍을 렌더링합니다.
-				m_Foliage->Render(m_D3D->GetDeviceContext());
-				m_FoliageShader->Render(m_D3D->GetDeviceContext(), m_Foliage->GetVertexCount(), m_Foliage->GetInstanceCount(), viewMatrix, projectionMatrix, m_Foliage->GetTexture());
+				m_foliage->Render(m_d3d->GetDeviceContext());
+				if (!m_foliageShader->Render(
+					m_d3d->GetDeviceContext(),
+					m_foliage->GetVertexCount(),
+					m_foliage->GetInstanceCount(),
+					viewMatrix,
+					projectionMatrix,
+					m_foliage->GetTexture()))
+				{
+					return false;
+				}
 
 				// 투명 끄기
-				m_D3D->TurnOffAlphaBlending();
+				m_d3d->TurnOffAlphaBlending();
 
 				// 일반 깊이 스텐실 상태로 복원
-				m_D3D->DisableDepthTestingWithoutWrites();
+				m_d3d->DisableDepthTestingWithoutWrites();
 	
 
 
 				// Put the model vertex and index buffers on the graphics pipeline to prepare them for drawing.
-				for (auto m_Model : m_Models)
+				for (const auto& model : m_gameObjects)
 				{
-					if (!m_Model->isAlive()) continue;
+					if (!model->IsActive()) continue;
 
-					m_D3D->GetWorldMatrix(worldMatrix);
-					m_Model->GetPosition(posX, posY, posZ);
-					m_Model->GetRotation(rotX, rotY, rotZ);
-					m_Model->GetScale(scaleX, scaleY, scaleZ);
-
-					worldMatrix *= XMMatrixScaling(scaleX, scaleY, scaleZ);
-					worldMatrix *= XMMatrixRotationRollPitchYaw(rotX, rotY, rotZ);
-					worldMatrix *= XMMatrixTranslation(posX, posY, posZ);
+					worldMatrix = model->GetWorldMatrix();
 
 
-					m_Model->Render(m_D3D->GetDeviceContext());
+					model->Render(m_d3d->GetDeviceContext());
 
-					// Fix: pass light position and direction in the correct order
-					result = m_SoftShadowShader->Render(
-						m_D3D->GetDeviceContext(),
-						m_Model->GetIndexCount(),
+					result = m_softShadowPipeline->RenderSurface(
+						m_d3d->GetDeviceContext(),
+						model->GetIndexCount(),
 						worldMatrix,
 						viewMatrix,
 						projectionMatrix,
-						m_Model->GetTexture(),
-						m_UpSampleTexure->GetShaderResourceView(),
-						m_Light->GetDirection(),
-						m_Light->GetAmbientColor(),
-						m_Light->GetDiffuseColor(),
-						m_Light->GetPosition(),
-						m_Light->GetSpecularColor(),
-						m_Light->GetSpecularPower());
+						model->GetTexture(),
+						*m_light);
 					if (!result)
 					{
 						return false;
@@ -1543,41 +836,41 @@ bool GraphicsClass::Render(float frameTime)
 				}
 
 
-				m_D3D->GetWorldMatrix(worldMatrix);
+				m_d3d->GetWorldMatrix(worldMatrix);
 				// 화면 내 위치 변환을 막기 위해 BaseViewMatrix로 전환
-				m_Camera->GetBaseViewMatrix(viewMatrix);
+				m_camera->GetBaseViewMatrix(viewMatrix);
 				// Turn off the Z buffer to begin all 2D rendering.
-				m_D3D->TurnZBufferOff();
+				m_d3d->TurnZBufferOff();
 
 				// Turn on the alpha blending before rendering the text.
-				m_D3D->TurnOnAlphaBlending();
+				m_d3d->TurnOnAlphaBlending();
 
 				// Render the text strings.
-				result = m_Text->Render(m_D3D->GetDeviceContext(), worldMatrix, orthoMatrix);
+				result = m_text->Render(m_d3d->GetDeviceContext(), worldMatrix, orthoMatrix);
 				if (!result)
 				{
 					return false;
 				}
 
 
-				for (auto m_Crosshair : m_Crosshairs) {
+				for (const auto& crosshair : m_crosshairs) {
 
-					m_D3D->GetWorldMatrix(worldMatrix);
-					m_Crosshair->GetPosition(posX, posY, posZ);
-					m_Crosshair->GetScale(scaleX, scaleY, scaleZ);
+					m_d3d->GetWorldMatrix(worldMatrix);
+					crosshair->GetPosition(posX, posY, posZ);
+					crosshair->GetScale(scaleX, scaleY, scaleZ);
 
 					worldMatrix *= XMMatrixScaling(scaleX, scaleY, scaleZ);
 					worldMatrix *= XMMatrixTranslation(posX, posY, posZ);
 
 					// Put the bitmap vertex and index buffers on the graphics pipeline to prepare them for drawing.
-					result = m_Crosshair->Render(m_D3D->GetDeviceContext(), 200, 200);
+					result = crosshair->Render(m_d3d->GetDeviceContext(), 200, 200);
 					if (!result)
 					{
 						return false;
 					}
 
 					// Render the bitmap with the texture shader.
-					result = m_TextureShader->Render(m_D3D->GetDeviceContext(), m_Crosshair->GetIndexCount(), worldMatrix, viewMatrix, orthoMatrix, m_Crosshair->GetTexture());
+					result = m_textureShader->Render(m_d3d->GetDeviceContext(), crosshair->GetIndexCount(), worldMatrix, viewMatrix, orthoMatrix, crosshair->GetTexture());
 					if (!result)
 					{
 						return false;
@@ -1585,13 +878,10 @@ bool GraphicsClass::Render(float frameTime)
 				}
 				
 				// Turn off alpha blending after rendering the text.
-				m_D3D->TurnOffAlphaBlending();
+				m_d3d->TurnOffAlphaBlending();
 
 				// Turn the Z buffer back on now that all 2D rendering has completed.
-				m_D3D->TurnZBufferOn();
-
-				// Present the rendered scene to the screen.
-				m_D3D->EndScene();
+				m_d3d->TurnZBufferOn();
 
 				return true;
 			}
@@ -1601,11 +891,6 @@ bool GraphicsClass::Render(float frameTime)
 	}
 
 	return true;
-}
-
-CameraClass* GraphicsClass::GetCam()
-{
-	return m_Camera;
 }
 
 void GraphicsClass::TestIntersection()
@@ -1618,7 +903,7 @@ void GraphicsClass::TestIntersection()
 	float pointY = (((2.0f * static_cast<float>(m_screenHeight) / 2) / static_cast<float>(m_screenHeight)) - 1.0f) * -1.0f;
 
 	// 투영 행렬을 가져옴
-	m_D3D->GetProjectionMatrix(projectionMatrix);
+	m_d3d->GetProjectionMatrix(projectionMatrix);
 
 	// 투영 행렬의 역행렬을 사용하여 뷰 공간으로 변환
 	XMMATRIX invProjection = XMMatrixInverse(nullptr, projectionMatrix);
@@ -1629,7 +914,7 @@ void GraphicsClass::TestIntersection()
 	farPoint = XMVector3TransformCoord(farPoint, invProjection);
 
 	// 뷰 행렬의 역행렬을 구함
-	m_Camera->GetViewMatrix(viewMatrix);
+	m_camera->GetViewMatrix(viewMatrix);
 	XMMATRIX invView = XMMatrixInverse(nullptr, viewMatrix);
 
 	// 월드 공간으로 변환
@@ -1645,12 +930,12 @@ void GraphicsClass::TestIntersection()
 	float closestDistance = FLT_MAX;
 	int hitModelIndex = -1;
 
-	for (int i = 0; i < static_cast<int>(m_Models.size()); i++)
+	for (int i = 0; i < static_cast<int>(m_gameObjects.size()); i++)
 	{
-		if (!m_Models[i]->isAlive()) continue;
+		if (!m_gameObjects[i]->IsActive()) continue;
 
 		// 월드 공간 AABB 가져오기
-		CollisionHelpers::AABB worldAABB = m_Models[i]->GetWorldAABB();
+		CollisionHelpers::AABB worldAABB = m_gameObjects[i]->GetWorldAABB();
 
 		// Ray-AABB 교차 테스트
 		float distance;
@@ -1668,27 +953,16 @@ void GraphicsClass::TestIntersection()
 	// 충돌한 모델 처리
 	if (hitModelIndex >= 0)
 	{
-		m_Models[hitModelIndex]->SetDie();
-		wholeObj--;
-		wholePoly -= m_Models[hitModelIndex]->CountPolygons();
+		m_gameObjects[hitModelIndex]->SetActive(false);
+		if (m_objectCount > 0)
+		{
+			--m_objectCount;
+		}
+
+		const auto removedPolygons = static_cast<unsigned int>(
+			m_gameObjects[hitModelIndex]->GetPolygonCount());
+		m_polygonCount = removedPolygons <= m_polygonCount
+			? m_polygonCount - removedPolygons
+			: 0;
 	}
-}
-
-bool GraphicsClass::RaySphereIntersect(XMFLOAT3 rayOrigin, XMFLOAT3 rayDirection, float radius)
-{
-	// a, b 및 c 계수를 계산합니다.
-	float a = (rayDirection.x * rayDirection.x) + (rayDirection.y * rayDirection.y) + (rayDirection.z * rayDirection.z);
-	float b = ((rayDirection.x * rayOrigin.x) + (rayDirection.y * rayOrigin.y) + (rayDirection.z * rayOrigin.z)) * 2.0f;
-	float c = ((rayOrigin.x * rayOrigin.x) + (rayOrigin.y * rayOrigin.y) + (rayOrigin.z * rayOrigin.z)) - (radius * radius);
-
-	// 결과값을 얻는다
-	float discriminant = (b * b) - (4 * a * c);
-
-	// 결과값이 음수이면 피킹 선이 구를 벗어난 것입니다. 그렇지 않으면 구를 선택합니다.
-	if (discriminant < 0.0f)
-	{
-		return false;
-	}
-
-	return true;
 }

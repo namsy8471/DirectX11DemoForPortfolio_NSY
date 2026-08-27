@@ -1,4 +1,4 @@
-////////////////////////////////////////////////////////////////////////////////
+﻿////////////////////////////////////////////////////////////////////////////////
 // Filename: fontshaderclass.h
 ////////////////////////////////////////////////////////////////////////////////
 #ifndef _FONTSHADERCLASS_H_
@@ -11,6 +11,7 @@
 #include <d3d11.h>
 #include <directxmath.h>
 #include <d3dcompiler.h>
+#include <wrl/client.h>
 
 #include <fstream>
 
@@ -38,7 +39,8 @@ private:
 
 public:
 	FontShaderClass();
-	FontShaderClass(const FontShaderClass&);
+	FontShaderClass(const FontShaderClass&) = delete;
+	FontShaderClass& operator=(const FontShaderClass&) = delete;
 	~FontShaderClass();
 
 	bool Initialize(ID3D11Device*, HWND);
@@ -54,12 +56,12 @@ private:
 	void RenderShader(ID3D11DeviceContext*, int);
 
 private:
-	ID3D11VertexShader* m_vertexShader;
-	ID3D11PixelShader* m_pixelShader;
-	ID3D11InputLayout* m_layout;
-	ID3D11Buffer* m_constantBuffer;
-	ID3D11SamplerState* m_sampleState;
-	ID3D11Buffer* m_pixelBuffer;
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> m_vertexShader;
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> m_pixelShader;
+	Microsoft::WRL::ComPtr<ID3D11InputLayout> m_layout;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_constantBuffer;
+	Microsoft::WRL::ComPtr<ID3D11SamplerState> m_sampleState;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_pixelBuffer;
 };
 
 #endif

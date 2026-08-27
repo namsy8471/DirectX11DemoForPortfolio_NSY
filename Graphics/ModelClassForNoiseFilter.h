@@ -1,6 +1,16 @@
-#pragma once
+﻿#pragma once
+
+#include <cstdint>
+#include <memory>
+#include <vector>
+
+#include <d3d11.h>
+#include <DirectXMath.h>
+#include <wrl/client.h>
 
 #include "textureclass.h"
+
+using namespace DirectX;
 
 class ModelClassForNoiseFilter
 {
@@ -20,7 +30,8 @@ private:
 
 public:
 	ModelClassForNoiseFilter();
-	ModelClassForNoiseFilter(const ModelClassForNoiseFilter&);
+	ModelClassForNoiseFilter(const ModelClassForNoiseFilter&) = delete;
+	ModelClassForNoiseFilter& operator=(const ModelClassForNoiseFilter&) = delete;
 	~ModelClassForNoiseFilter();
 
 	bool Initialize(HWND, ID3D11Device*, const char*, const WCHAR*, const WCHAR*, const WCHAR*);
@@ -45,12 +56,12 @@ private:
 	void ReleaseModel();
 
 private:
-	ID3D11Buffer* m_vertexBuffer = nullptr;
-	ID3D11Buffer* m_indexBuffer = nullptr;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_vertexBuffer;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_indexBuffer;
 	int m_vertexCount = 0;
 	int m_indexCount = 0;
-	TextureClass* m_Texture1 = nullptr;
-	TextureClass* m_Texture2 = nullptr;
-	TextureClass* m_Texture3 = nullptr;
-	ModelType* m_model = nullptr;
+	std::unique_ptr<TextureClass> m_Texture1;
+	std::unique_ptr<TextureClass> m_Texture2;
+	std::unique_ptr<TextureClass> m_Texture3;
+	std::vector<ModelType> m_model;
 };

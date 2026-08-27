@@ -1,4 +1,4 @@
-////////////////////////////////////////////////////////////////////////////////
+﻿////////////////////////////////////////////////////////////////////////////////
 // Filename: bitmapclass.h
 ////////////////////////////////////////////////////////////////////////////////
 #ifndef _BITMAPCLASS_H_
@@ -10,6 +10,8 @@
 //////////////
 #include <d3d11.h>
 #include <directxmath.h>
+#include <memory>
+#include <wrl/client.h>
 
 using namespace DirectX;
 
@@ -34,7 +36,8 @@ private:
 
 public:
 	BitmapClass();
-	BitmapClass(const BitmapClass&);
+	BitmapClass(const BitmapClass&) = delete;
+	BitmapClass& operator=(const BitmapClass&) = delete;
 	~BitmapClass();
 
 	bool Initialize(ID3D11Device*, int, int, const WCHAR*, int, int);
@@ -59,14 +62,19 @@ private:
 	void ReleaseTexture();
 
 private:
-	ID3D11Buffer *m_vertexBuffer, *m_indexBuffer;
-	int m_vertexCount, m_indexCount;
-	TextureClass* m_Texture;
-	int m_screenWidth, m_screenHeight;
-	int m_bitmapWidth, m_bitmapHeight;
-	int m_previousPosX, m_previousPosY;
-	XMFLOAT3 m_position;
-	XMFLOAT3 m_scale;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_vertexBuffer;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_indexBuffer;
+	int m_vertexCount = 0;
+	int m_indexCount = 0;
+	std::unique_ptr<TextureClass> m_Texture;
+	int m_screenWidth = 0;
+	int m_screenHeight = 0;
+	int m_bitmapWidth = 0;
+	int m_bitmapHeight = 0;
+	int m_previousPosX = -1;
+	int m_previousPosY = -1;
+	XMFLOAT3 m_position{0.0f, 0.0f, 0.0f};
+	XMFLOAT3 m_scale{1.0f, 1.0f, 1.0f};
 };
 
 #endif

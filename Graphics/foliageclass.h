@@ -1,8 +1,17 @@
-#pragma once
+ï»¿#pragma once
 
+
+#include <memory>
+#include <vector>
+
+#include <d3d11.h>
+#include <DirectXMath.h>
+#include <wrl/client.h>
+
+using namespace DirectX;
 
 class TextureClass;
-class TerrainClass;  // Àü¹æ ¼±¾ð Ãß°¡
+class TerrainClass;  // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ß°ï¿½
 
 
 class FoliageClass
@@ -28,13 +37,14 @@ private:
 
 public:
 	FoliageClass();
-	FoliageClass(const FoliageClass&);
+	FoliageClass(const FoliageClass&) = delete;
+	FoliageClass& operator=(const FoliageClass&) = delete;
 	~FoliageClass();
 
 	bool Initialize(ID3D11Device*, const WCHAR*, int);
 	void Shutdown();
 	void Render(ID3D11DeviceContext*);
-	bool Frame(XMFLOAT3, ID3D11DeviceContext*, float, TerrainClass*);  // ÁöÇü ÆÄ¶ó¹ÌÅÍ Ãß°¡
+	bool Frame(XMFLOAT3, ID3D11DeviceContext*, float, TerrainClass*);  // ï¿½ï¿½ï¿½ï¿½ ï¿½Ä¶ï¿½ï¿½ï¿½ï¿½ ï¿½ß°ï¿½
 
 	int GetVertexCount();
 	int GetInstanceCount();
@@ -59,13 +69,13 @@ private:
 
 	XMFLOAT3 m_position = XMFLOAT3(0.0f, 0.0f, 0.0f);
 
-	FoliageType* m_foliageArray = nullptr;
-	InstanceType* m_Instances = nullptr;
-	ID3D11Buffer *m_vertexBuffer = nullptr;
-	ID3D11Buffer *m_instanceBuffer = nullptr;
+	std::vector<FoliageType> m_foliageArray;
+	std::vector<InstanceType> m_Instances;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_vertexBuffer;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_instanceBuffer;
 	int m_vertexCount = 0;
 	int m_instanceCount = 0;
-	TextureClass* m_Texture = nullptr;
+	std::unique_ptr<TextureClass> m_Texture;
 	float m_windRotation = 0.0f;
 	int m_windDirection = 0;
 };

@@ -1,5 +1,14 @@
-#pragma once
+﻿#pragma once
 
+
+#include <cstdint>
+#include <vector>
+
+#include <d3d11.h>
+#include <DirectXMath.h>
+#include <wrl/client.h>
+
+using namespace DirectX;
 
 class SkyDomeClass
 {
@@ -18,7 +27,8 @@ private:
 
 public:
 	SkyDomeClass();
-	SkyDomeClass(const SkyDomeClass&);
+	SkyDomeClass(const SkyDomeClass&) = delete;
+	SkyDomeClass& operator=(const SkyDomeClass&) = delete;
 	~SkyDomeClass();
 
 	bool Initialize(ID3D11Device*);
@@ -38,11 +48,11 @@ private:
 	void RenderBuffers(ID3D11DeviceContext*);
 
 private:
-	ModelType* m_model = nullptr;
+	std::vector<ModelType> m_model;
 	int m_vertexCount = 0;
 	int m_indexCount = 0;
-	ID3D11Buffer* m_vertexBuffer = nullptr; 
-	ID3D11Buffer* m_indexBuffer = nullptr;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_vertexBuffer;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_indexBuffer;
 	XMFLOAT4 m_apexColor;
 	XMFLOAT4 m_centerColor;
 };

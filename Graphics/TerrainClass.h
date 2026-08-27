@@ -1,4 +1,4 @@
-#pragma once
+癤�#pragma once
 
 
 
@@ -6,6 +6,15 @@
 // GLOBALS //
 /////////////
 const int TEXTURE_REPEAT = 8;
+
+#include <memory>
+#include <vector>
+
+#include <d3d11.h>
+#include <DirectXMath.h>
+#include <wrl/client.h>
+
+using namespace DirectX;
 
 class TextureClass;
 
@@ -34,7 +43,8 @@ private:
 
 public:
 	TerrainClass();
-	TerrainClass(const TerrainClass&);
+	TerrainClass(const TerrainClass&) = delete;
+	TerrainClass& operator=(const TerrainClass&) = delete;
 	~TerrainClass();
 
 	bool Initialize(ID3D11Device*, const char*, const WCHAR*);
@@ -43,9 +53,9 @@ public:
 
 	int GetIndexCount();
 	ID3D11ShaderResourceView* GetTexture();
+	void SetWorldOffset(const XMFLOAT3& worldOffset) noexcept;
 	
-	// 지형 높이 가져오기 메서드 추가
-	float GetHeight(float x, float z);
+	[[nodiscard]] float GetHeight(float x, float z) const noexcept;
 
 private:
 	bool LoadHeightMap(const char*);
@@ -66,8 +76,9 @@ private:
 	int m_terrainHeight = 0;
 	int m_vertexCount = 0;
 	int m_indexCount = 0;
-	ID3D11Buffer* m_vertexBuffer = nullptr;
-	ID3D11Buffer* m_indexBuffer = nullptr;
-	HeightMapType* m_heightMap = nullptr;
-	TextureClass* m_Texture = nullptr;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_vertexBuffer;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_indexBuffer;
+	std::vector<HeightMapType> m_heightMap;
+	std::unique_ptr<TextureClass> m_Texture;
+	XMFLOAT3 m_worldOffset{0.0f, 0.0f, 0.0f};
 };

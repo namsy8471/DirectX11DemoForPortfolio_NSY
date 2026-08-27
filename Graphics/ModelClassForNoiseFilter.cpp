@@ -1,7 +1,9 @@
-#include "stdafx.h"
+ï»¿#include "stdafx.h"
 #include "ModelclassForNoiseFilter.h"
 
 #include <fstream>
+#include <utility>
+#include <vector>
 using namespace std;
 
 
@@ -10,54 +12,63 @@ ModelClassForNoiseFilter::ModelClassForNoiseFilter()
 }
 
 
-ModelClassForNoiseFilter::ModelClassForNoiseFilter(const ModelClassForNoiseFilter& other)
-{
-}
-
-
 ModelClassForNoiseFilter::~ModelClassForNoiseFilter()
 {
+	Shutdown();
 }
 
 
 bool ModelClassForNoiseFilter::Initialize(HWND hwnd, ID3D11Device* device, const char* modelFilename, const WCHAR* textureFilename1, const WCHAR* textureFilename2, 
 							const WCHAR* textureFilename3)
 {
-	// ¸ðµ¨ µ¥ÀÌÅÍ¸¦ ·ÎµåÇÕ´Ï´Ù.
+	Shutdown();
+	if (device == nullptr || modelFilename == nullptr || textureFilename1 == nullptr ||
+		textureFilename2 == nullptr || textureFilename3 == nullptr)
+	{
+		return false;
+	}
+
+	// ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½Îµï¿½ï¿½Õ´Ï´ï¿½.
 	if(!LoadModel(hwnd, modelFilename))
 	{
 		MessageBox(hwnd, L"Could not Load the model object in Model Class For Noise Filter.", L"Error", MB_OK);
 		return false;
 	}
 
-	// Á¤Á¡ ¹× ÀÎµ¦½º ¹öÆÛ¸¦ ÃÊ±âÈ­ÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Îµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Û¸ï¿½ ï¿½Ê±ï¿½È­ï¿½Õ´Ï´ï¿½.
 	if (!InitializeBuffers(device))
 	{
 		MessageBox(hwnd, L"Could not Initialize buffers in Model Class For Noise Filter.", L"Error", MB_OK);
+		Shutdown();
 		return false;
 	}
 
-	// ÀÌ ¸ðµ¨ÀÇ ÅØ½ºÃ³¸¦ ·ÎµåÇÕ´Ï´Ù.
-	return LoadTextures(device, textureFilename1, textureFilename2, textureFilename3);
+	// ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ø½ï¿½Ã³ï¿½ï¿½ ï¿½Îµï¿½ï¿½Õ´Ï´ï¿½.
+	if (!LoadTextures(device, textureFilename1, textureFilename2, textureFilename3))
+	{
+		Shutdown();
+		return false;
+	}
+	return true;
 }
 
 
 void ModelClassForNoiseFilter::Shutdown()
 {
-	// ¸ðµ¨ ÅØ½ºÃÄ¸¦ ¹ÝÈ¯ÇÕ´Ï´Ù.
+	// ï¿½ï¿½ ï¿½Ø½ï¿½ï¿½Ä¸ï¿½ ï¿½ï¿½È¯ï¿½Õ´Ï´ï¿½.
 	ReleaseTextures();
 
-	// ¹öÅØ½º ¹× ÀÎµ¦½º ¹öÆÛ¸¦ Á¾·áÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½Ø½ï¿½ ï¿½ï¿½ ï¿½Îµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Û¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	ShutdownBuffers();
 
-	// ¸ðµ¨ µ¥ÀÌÅÍ ¹ÝÈ¯
+	// ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¯
 	ReleaseModel();
 }
 
 
 void ModelClassForNoiseFilter::Render(ID3D11DeviceContext* deviceContext)
 {
-	// ±×¸®±â¸¦ ÁØºñÇÏ±â À§ÇØ ±×·¡ÇÈ ÆÄÀÌÇÁ ¶óÀÎ¿¡ ²ÀÁöÁ¡°ú ÀÎµ¦½º ¹öÆÛ¸¦ ³õ½À´Ï´Ù.
+	// ï¿½×¸ï¿½ï¿½â¸¦ ï¿½Øºï¿½ï¿½Ï±ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½×·ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Î¿ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Îµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Û¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.
 	RenderBuffers(deviceContext);
 }
 
@@ -70,272 +81,194 @@ int ModelClassForNoiseFilter::GetIndexCount()
 
 bool ModelClassForNoiseFilter::InitializeBuffers(ID3D11Device* device)
 {
-	// Á¤Á¡ ¹è¿­À» ¸¸µì´Ï´Ù.
-	VertexType* vertices = new VertexType[m_vertexCount];
-	if (!vertices)
+	if (device == nullptr || m_model.size() != static_cast<std::size_t>(m_vertexCount))
 	{
 		return false;
 	}
 
-	// ÀÎµ¦½º ¹è¿­À» ¸¸µì´Ï´Ù.
-	unsigned long* indices = new unsigned long[m_indexCount];
-	if (!indices)
+	std::vector<VertexType> vertices(static_cast<std::size_t>(m_vertexCount));
+	std::vector<std::uint32_t> indices(static_cast<std::size_t>(m_indexCount));
+	for (int i = 0; i < m_vertexCount; ++i)
 	{
-		return false;
+		const std::size_t index = static_cast<std::size_t>(i);
+		vertices[index].position = XMFLOAT3(m_model[index].x, m_model[index].y, m_model[index].z);
+		vertices[index].texture = XMFLOAT2(m_model[index].tu, m_model[index].tv);
+		indices[index] = static_cast<std::uint32_t>(i);
 	}
 
-	// Á¤Á¡ ¹è¿­°ú ÀÎµ¦½º ¹è¿­À» µ¥ÀÌÅÍ·Î ÀÐ¾î¿É´Ï´Ù.
-	for (int i = 0; i < m_vertexCount; i++)
-	{
-		vertices[i].position = XMFLOAT3(m_model[i].x, m_model[i].y, m_model[i].z);
-		vertices[i].texture = XMFLOAT2(m_model[i].tu, m_model[i].tv);
-		indices[i] = i;
-	}
-
-	// Á¤Àû Á¤Á¡ ¹öÆÛÀÇ ±¸Á¶Ã¼¸¦ ¼³Á¤ÇÕ´Ï´Ù.
-	D3D11_BUFFER_DESC vertexBufferDesc;
+	D3D11_BUFFER_DESC vertexBufferDesc{};
 	vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-	vertexBufferDesc.ByteWidth = sizeof(VertexType) * m_vertexCount;
+	vertexBufferDesc.ByteWidth = static_cast<UINT>(sizeof(VertexType) * m_vertexCount);
 	vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	vertexBufferDesc.CPUAccessFlags = 0;
-	vertexBufferDesc.MiscFlags = 0;
-	vertexBufferDesc.StructureByteStride = 0;
 
-	// subresource ±¸Á¶¿¡ Á¤Á¡ µ¥ÀÌÅÍ¿¡ ´ëÇÑ Æ÷ÀÎÅÍ¸¦ Á¦°øÇÕ´Ï´Ù.
-	D3D11_SUBRESOURCE_DATA vertexData;
-	vertexData.pSysMem = vertices;
-	vertexData.SysMemPitch = 0;
-	vertexData.SysMemSlicePitch = 0;
+	D3D11_SUBRESOURCE_DATA vertexData{};
+	vertexData.pSysMem = vertices.data();
 
-	// ÀÌÁ¦ Á¤Á¡ ¹öÆÛ¸¦ ¸¸µì´Ï´Ù.
-	if (FAILED(device->CreateBuffer(&vertexBufferDesc, &vertexData, &m_vertexBuffer)))
+	Microsoft::WRL::ComPtr<ID3D11Buffer> vertexBuffer;
+	if (FAILED(device->CreateBuffer(&vertexBufferDesc, &vertexData, vertexBuffer.GetAddressOf())))
 	{
 		return false;
 	}
 
-	// Á¤Àû ÀÎµ¦½º ¹öÆÛÀÇ ±¸Á¶Ã¼¸¦ ¼³Á¤ÇÕ´Ï´Ù.
-	D3D11_BUFFER_DESC indexBufferDesc;
+	D3D11_BUFFER_DESC indexBufferDesc{};
 	indexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-	indexBufferDesc.ByteWidth = sizeof(unsigned long) * m_indexCount;
+	indexBufferDesc.ByteWidth = static_cast<UINT>(sizeof(std::uint32_t) * m_indexCount);
 	indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	indexBufferDesc.CPUAccessFlags = 0;
-	indexBufferDesc.MiscFlags = 0;
-	indexBufferDesc.StructureByteStride = 0;
 
-	// ÀÎµ¦½º µ¥ÀÌÅÍ¸¦ °¡¸®Å°´Â º¸Á¶ ¸®¼Ò½º ±¸Á¶Ã¼¸¦ ÀÛ¼ºÇÕ´Ï´Ù.
-	D3D11_SUBRESOURCE_DATA indexData;
-	indexData.pSysMem = indices;
-	indexData.SysMemPitch = 0;
-	indexData.SysMemSlicePitch = 0;
+	D3D11_SUBRESOURCE_DATA indexData{};
+	indexData.pSysMem = indices.data();
 
-	// ÀÎµ¦½º ¹öÆÛ¸¦ »ý¼ºÇÕ´Ï´Ù.
-	if (FAILED(device->CreateBuffer(&indexBufferDesc, &indexData, &m_indexBuffer)))
+	Microsoft::WRL::ComPtr<ID3D11Buffer> indexBuffer;
+	if (FAILED(device->CreateBuffer(&indexBufferDesc, &indexData, indexBuffer.GetAddressOf())))
 	{
 		return false;
 	}
 
-	// »ý¼ºµÇ°í °ªÀÌ ÇÒ´çµÈ Á¤Á¡ ¹öÆÛ¿Í ÀÎµ¦½º ¹öÆÛ¸¦ ÇØÁ¦ÇÕ´Ï´Ù.
-	delete[] vertices;
-	vertices = 0;
-
-	delete[] indices;
-	indices = 0;
-
+	m_vertexBuffer = std::move(vertexBuffer);
+	m_indexBuffer = std::move(indexBuffer);
 	return true;
 }
 
 
 void ModelClassForNoiseFilter::ShutdownBuffers()
 {
-	// ÀÎµ¦½º ¹öÆÛ¸¦ ÇØÁ¦ÇÕ´Ï´Ù.
-	if (m_indexBuffer)
-	{
-		m_indexBuffer->Release();
-		m_indexBuffer = 0;
-	}
-
-	// Á¤Á¡ ¹öÆÛ¸¦ ÇØÁ¦ÇÕ´Ï´Ù.
-	if (m_vertexBuffer)
-	{
-		m_vertexBuffer->Release();
-		m_vertexBuffer = 0;
-	}
+	m_indexBuffer.Reset();
+	m_vertexBuffer.Reset();
 }
 
 
 void ModelClassForNoiseFilter::RenderBuffers(ID3D11DeviceContext* deviceContext)
 {
-	// Á¤Á¡ ¹öÆÛÀÇ ´ÜÀ§¿Í ¿ÀÇÁ¼ÂÀ» ¼³Á¤ÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	UINT stride = sizeof(VertexType);
 	UINT offset = 0;
 
-	// ·»´õ¸µ ÇÒ ¼ö ÀÖµµ·Ï ÀÔ·Â ¾î¼Àºí·¯¿¡¼­ Á¤Á¡ ¹öÆÛ¸¦ È°¼ºÀ¸·Î ¼³Á¤ÇÕ´Ï´Ù.
-	deviceContext->IASetVertexBuffers(0, 1, &m_vertexBuffer, &stride, &offset);
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ ï¿½Öµï¿½ï¿½ï¿½ ï¿½Ô·ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Û¸ï¿½ È°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+	ID3D11Buffer* vertexBuffer = m_vertexBuffer.Get();
+	deviceContext->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
 
-	// ·»´õ¸µ ÇÒ ¼ö ÀÖµµ·Ï ÀÔ·Â ¾î¼Àºí·¯¿¡¼­ ÀÎµ¦½º ¹öÆÛ¸¦ È°¼ºÀ¸·Î ¼³Á¤ÇÕ´Ï´Ù.
-	deviceContext->IASetIndexBuffer(m_indexBuffer, DXGI_FORMAT_R32_UINT, 0);
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ ï¿½Öµï¿½ï¿½ï¿½ ï¿½Ô·ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Îµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Û¸ï¿½ È°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+	deviceContext->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
 
-	// Á¤Á¡ ¹öÆÛ·Î ±×¸± ±âº»ÇüÀ» ¼³Á¤ÇÕ´Ï´Ù. ¿©±â¼­´Â »ï°¢ÇüÀ¸·Î ¼³Á¤ÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Û·ï¿½ ï¿½×¸ï¿½ ï¿½âº»ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½. ï¿½ï¿½ï¿½â¼­ï¿½ï¿½ ï¿½ï°¢ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
 
 bool ModelClassForNoiseFilter::LoadTextures(ID3D11Device* device, const WCHAR* textureFilename1, const WCHAR* textureFilename2, const WCHAR* textureFilename3)
 {
-	// Ã¹¹øÂ° ÅØ½ºÃ³ ¿ÀºêÁ§Æ®¸¦ »ý¼ºÇÑ´Ù.
-	m_Texture1 = new TextureClass;
-	if (!m_Texture1)
+	auto texture1 = std::make_unique<TextureClass>();
+	if(!texture1->Initialize(device, textureFilename1))
 	{
 		return false;
 	}
 
-	// Ã¹¹øÂ° ÅØ½ºÃ³ ¿ÀºêÁ§Æ®¸¦ ÃÊ±âÈ­ÇÑ´Ù
-	bool result = m_Texture1->Initialize(device, textureFilename1);
-	if(!result)
+	auto texture2 = std::make_unique<TextureClass>();
+	if(!texture2->Initialize(device, textureFilename2))
 	{
 		return false;
 	}
 
-	// µÎ¹øÂ° ÅØ½ºÃ³ ¿ÀºêÁ§Æ®¸¦ »ý¼ºÇÑ´Ù.
-	m_Texture2 = new TextureClass;
-	if(!m_Texture2)
+	auto texture3 = std::make_unique<TextureClass>();
+	if(!texture3->Initialize(device, textureFilename3))
 	{
 		return false;
 	}
 
-	// µÎ¹øÂ° ÅØ½ºÃ³ ¿ÀºêÁ§Æ®¸¦ ÃÊ±âÈ­ÇÑ´Ù
-	result = m_Texture2->Initialize(device, textureFilename2);
-	if(!result)
-	{
-		return false;
-	}
-
-	// ¼¼¹øÂ° ÅØ½ºÃ³ ¿ÀºêÁ§Æ®¸¦ »ý¼ºÇÑ´Ù.
-	m_Texture3 = new TextureClass;
-	if(!m_Texture3)
-	{
-		return false;
-	}
-
-	// ¼¼¹øÂ° ÅØ½ºÃ³ ¿ÀºêÁ§Æ®¸¦ ÃÊ±âÈ­ÇÑ´Ù
-	result = m_Texture3->Initialize(device, textureFilename3);
-	if(!result)
-	{
-		return false;
-	}
-
+	m_Texture1 = std::move(texture1);
+	m_Texture2 = std::move(texture2);
+	m_Texture3 = std::move(texture3);
 	return true;
 }
 
 
 void ModelClassForNoiseFilter::ReleaseTextures()
 {
-	// ÅØ½ºÃ³ ¿ÀºêÁ§Æ®¸¦ ÇØÁ¦ÇÑ´Ù
-	if(m_Texture1)
-	{
-		m_Texture1->Shutdown();
-		delete m_Texture1;
-		m_Texture1 = 0;
-	}
-
-	if(m_Texture2)
-	{
-		m_Texture2->Shutdown();
-		delete m_Texture2;
-		m_Texture2 = 0;
-	}
-
-	if(m_Texture3)
-	{
-		m_Texture3->Shutdown();
-		delete m_Texture3;
-		m_Texture3 = 0;
-	}
+	m_Texture1.reset();
+	m_Texture2.reset();
+	m_Texture3.reset();
 }
 
 
 ID3D11ShaderResourceView* ModelClassForNoiseFilter::GetTexture1()
 {
-	return m_Texture1->GetTexture();
+	return m_Texture1 ? m_Texture1->GetTexture() : nullptr;
 }
 
 
 ID3D11ShaderResourceView* ModelClassForNoiseFilter::GetTexture2()
 {
-	return m_Texture2->GetTexture();
+	return m_Texture2 ? m_Texture2->GetTexture() : nullptr;
 }
 
 
 ID3D11ShaderResourceView* ModelClassForNoiseFilter::GetTexture3()
 {
-	return m_Texture3->GetTexture();
+	return m_Texture3 ? m_Texture3->GetTexture() : nullptr;
 }
 
 
 bool ModelClassForNoiseFilter::LoadModel(HWND hwnd, const char* filename)
 {
-	// ¸ðµ¨ ÆÄÀÏÀ» ¿±´Ï´Ù.
-	ifstream fin;
-	fin.open(filename);
+	if (filename == nullptr)
+	{
+		return false;
+	}
+	ifstream fin(filename);
 	
-	// ÆÄÀÏÀ» ¿­ ¼ö ¾øÀ¸¸é Á¾·áÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	if(fin.fail())
 	{
 		MessageBox(hwnd, L"Fail to open the model object in Model Class For Noise Filter.", L"Error", MB_OK);
 		return false;
 	}
 
-	// ¹öÅØ½º Ä«¿îÆ®ÀÇ °ª±îÁö ÀÐ´Â´Ù.
+	// ï¿½ï¿½ï¿½Ø½ï¿½ Ä«ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ð´Â´ï¿½.
 	char input = 0;
-	fin.get(input);
-	while(input != ':')
+	while (fin.get(input) && input != ':') {}
+	if (!fin)
 	{
-		fin.get(input);
-	}
-
-	// ¹öÅØ½º Ä«¿îÆ®¸¦ ÀÐ´Â´Ù.
-	fin >> m_vertexCount;
-
-	// ÀÎµ¦½ºÀÇ ¼ö¸¦ Á¤Á¡ ¼ö¿Í °°°Ô ¼³Á¤ÇÕ´Ï´Ù.
-	m_indexCount = m_vertexCount;
-
-	// ÀÐ¾î µéÀÎ Á¤Á¡ °³¼ö¸¦ »ç¿ëÇÏ¿© ¸ðµ¨À» ¸¸µì´Ï´Ù.
-	m_model = new ModelType[m_vertexCount];
-	if(!m_model)
-	{
-		MessageBox(hwnd, L"There is no m_model in Model Class For Noise Filter.", L"Error", MB_OK);
 		return false;
 	}
 
-	// µ¥ÀÌÅÍÀÇ ½ÃÀÛ ºÎºÐ±îÁö ÀÐ´Â´Ù.
-	fin.get(input);
-	while(input != ':')
+	// ï¿½ï¿½ï¿½Ø½ï¿½ Ä«ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½Ð´Â´ï¿½.
+	int vertexCount = 0;
+	if (!(fin >> vertexCount) || vertexCount <= 0)
 	{
-		fin.get(input);
+		return false;
+	}
+	std::vector<ModelType> model(static_cast<std::size_t>(vertexCount));
+
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ÎºÐ±ï¿½ï¿½ï¿½ ï¿½Ð´Â´ï¿½.
+	while (fin.get(input) && input != ':') {}
+	if (!fin)
+	{
+		return false;
 	}
 	fin.get(input);
 	fin.get(input);
 
-	// ¹öÅØ½º µ¥ÀÌÅÍ¸¦ ÀÐ½À´Ï´Ù.
-	for (int i = 0; i < m_vertexCount; i++)
+	// ï¿½ï¿½ï¿½Ø½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½Ð½ï¿½ï¿½Ï´ï¿½.
+	for (int i = 0; i < vertexCount; ++i)
 	{
-		fin >> m_model[i].x >> m_model[i].y >> m_model[i].z;
-		fin >> m_model[i].tu >> m_model[i].tv;
-		fin >> m_model[i].nx >> m_model[i].ny >> m_model[i].nz;
+		ModelType& value = model[static_cast<std::size_t>(i)];
+		if (!(fin >> value.x >> value.y >> value.z >> value.tu >> value.tv >>
+			value.nx >> value.ny >> value.nz))
+		{
+			return false;
+		}
 	}
 
-	// ¸ðµ¨ ÆÄÀÏÀ» ´Ý´Â´Ù.
-	fin.close();
-
+	m_vertexCount = vertexCount;
+	m_indexCount = vertexCount;
+	m_model = std::move(model);
 	return true;
 }
 
 
 void ModelClassForNoiseFilter::ReleaseModel()
 {
-	if(m_model)
-	{
-		delete [] m_model;
-		m_model = 0;
-	}
+	m_model.clear();
+	m_vertexCount = 0;
+	m_indexCount = 0;
 }

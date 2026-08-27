@@ -1,80 +1,97 @@
 #include "stdafx.h"
 #include "CpuClass.h"
 
-
-CpuClass::CpuClass()
-{
-}
-
-
-CpuClass::CpuClass(const CpuClass& other)
-{
-}
-
+#include <algorithm>
 
 CpuClass::~CpuClass()
 {
+	Shutdown();
 }
 
-void CpuClass::Initialize()
+bool CpuClass::Initialize() noexcept
 {
-	// CPU 사용을 폴링하는 쿼리 개체를 만듭니다.
-	PDH_STATUS status = PdhOpenQuery(NULL, 0, &m_queryHandle);
-	if (status != ERROR_SUCCESS)
+	Shutdown();
+
+	HQUERY queryHandle = nullptr;
+	if (PdhOpenQuery(nullptr, 0, &queryHandle) != ERROR_SUCCESS)
 	{
-		m_canReadCpu = false;
+		return false;
 	}
 
-	// 시스템의 모든 CPU를 폴링하도록 쿼리 개체를 설정합니다.
-	status = PdhAddCounter(m_queryHandle, TEXT("\\Processor(_Total)\\% processor time"), 0, &m_counterHandle);
-	if (status != ERROR_SUCCESS)
+	HCOUNTER counterHandle = nullptr;
+	if (PdhAddCounter(
+		queryHandle,
+		TEXT("\\Processor(_Total)\\% Processor Time"),
+		0,
+		&counterHandle) != ERROR_SUCCESS)
 	{
-		m_canReadCpu = false;
+		PdhCloseQuery(queryHandle);
+		return false;
 	}
 
-	m_lastSampleTime = GetTickCount();
+	if (PdhCollectQueryData(queryHandle) != ERROR_SUCCESS)
+	{
+		PdhCloseQuery(queryHandle);
+		return false;
+	}
 
+	m_queryHandle = queryHandle;
+	m_counterHandle = counterHandle;
+	m_canReadCpu = true;
+	m_lastSampleTime = GetTickCount64();
 	m_cpuUsage = 0;
+	return true;
 }
 
-
-void CpuClass::Shutdown()
+void CpuClass::Shutdown() noexcept
 {
-	if (m_canReadCpu)
+	if (m_queryHandle != nullptr)
 	{
 		PdhCloseQuery(m_queryHandle);
 	}
+
+	m_queryHandle = nullptr;
+	m_counterHandle = nullptr;
+	m_canReadCpu = false;
+	m_lastSampleTime = 0;
+	m_cpuUsage = 0;
 }
 
-
-void CpuClass::Frame()
+void CpuClass::Frame() noexcept
 {
-	PDH_FMT_COUNTERVALUE value;
-
-	if (m_canReadCpu)
+	if (!m_canReadCpu || m_queryHandle == nullptr || m_counterHandle == nullptr)
 	{
-		if ((m_lastSampleTime + 1000) < GetTickCount())
-		{
-			m_lastSampleTime = GetTickCount();
-
-			PdhCollectQueryData(m_queryHandle);
-
-			PdhGetFormattedCounterValue(m_counterHandle, PDH_FMT_LONG, NULL, &value);
-
-			m_cpuUsage = value.longValue;
-		}
+		return;
 	}
+
+	const ULONGLONG currentTime = GetTickCount64();
+	if (currentTime - m_lastSampleTime < 1000)
+	{
+		return;
+	}
+	m_lastSampleTime = currentTime;
+
+	if (PdhCollectQueryData(m_queryHandle) != ERROR_SUCCESS)
+	{
+		return;
+	}
+
+	PDH_FMT_COUNTERVALUE value = {};
+	if (PdhGetFormattedCounterValue(m_counterHandle, PDH_FMT_LONG, nullptr, &value) != ERROR_SUCCESS ||
+		(value.CStatus != PDH_CSTATUS_VALID_DATA && value.CStatus != PDH_CSTATUS_NEW_DATA))
+	{
+		return;
+	}
+
+	m_cpuUsage = std::clamp(value.longValue, 0L, 100L);
 }
 
-
-int CpuClass::GetCpuPercentage()
+int CpuClass::GetCpuPercentage() const noexcept
 {
-	int usage = 0;
+	return m_canReadCpu ? static_cast<int>(m_cpuUsage) : 0;
+}
 
-	if (m_canReadCpu)
-	{
-		usage = (int)m_cpuUsage;
-	}
-
-	return usage;
+bool CpuClass::IsAvailable() const noexcept
+{
+	return m_canReadCpu;
 }

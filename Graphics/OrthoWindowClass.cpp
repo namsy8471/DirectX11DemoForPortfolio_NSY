@@ -1,5 +1,9 @@
-#include "stdafx.h"
+ï»¿#include "stdafx.h"
 #include "OrthoWindowClass.h"
+
+#include <cstdint>
+#include <utility>
+#include <vector>
 
 
 OrthoWindowClass::OrthoWindowClass()
@@ -7,32 +11,33 @@ OrthoWindowClass::OrthoWindowClass()
 }
 
 
-OrthoWindowClass::OrthoWindowClass(const OrthoWindowClass& other)
-{
-}
-
-
 OrthoWindowClass::~OrthoWindowClass()
 {
+	Shutdown();
 }
 
 
 bool OrthoWindowClass::Initialize(ID3D11Device* device, int windowWidth, int windowHeight)
 {
+	Shutdown();
+	if (device == nullptr || windowWidth <= 0 || windowHeight <= 0)
+	{
+		return false;
+	}
 	return InitializeBuffers(device, windowWidth, windowHeight);
 }
 
 
 void OrthoWindowClass::Shutdown()
 {
-	// ¹öÅØ½º ¹× ÀÎµ¦½º ¹öÆÛ¸¦ Á¾·áÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½Ø½ï¿½ ï¿½ï¿½ ï¿½Îµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Û¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	ShutdownBuffers();
 }
 
 
 void OrthoWindowClass::Render(ID3D11DeviceContext* deviceContext)
 {
-	// ±×¸®±â¸¦ ÁØºñÇÏ±â À§ÇØ ±×·¡ÇÈ ÆÄÀÌÇÁ ¶óÀÎ¿¡ ²ÀÁöÁ¡°ú ÀÎµ¦½º ¹öÆÛ¸¦ ³õ½À´Ï´Ù.
+	// ï¿½×¸ï¿½ï¿½â¸¦ ï¿½Øºï¿½ï¿½Ï±ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½×·ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Î¿ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Îµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Û¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.
 	RenderBuffers(deviceContext);
 }
 
@@ -45,113 +50,100 @@ int OrthoWindowClass::GetIndexCount()
 
 bool OrthoWindowClass::InitializeBuffers(ID3D11Device* device, int windowWidth, int windowHeight)
 {	
-	// À©µµ¿ì ¿ÞÂÊÀÇ È­¸é ÁÂÇ¥¸¦ °è»êÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ È­ï¿½ï¿½ ï¿½ï¿½Ç¥ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	float left = (float)((windowWidth / 2) * -1);
 
-	// À©µµ¿ì ¿À¸¥ÂÊÀÇ È­¸é ÁÂÇ¥¸¦ °è»êÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ È­ï¿½ï¿½ ï¿½ï¿½Ç¥ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	float right = left + (float)windowWidth;
 
-	// À©µµ¿ì »ó´ÜÀÇ È­¸é ÁÂÇ¥¸¦ °è»êÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ È­ï¿½ï¿½ ï¿½ï¿½Ç¥ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	float top = (float)(windowHeight / 2);
 
-	// À©µµ¿ì ÇÏ´ÜÀÇ È­¸é ÁÂÇ¥¸¦ °è»êÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ï´ï¿½ï¿½ï¿½ È­ï¿½ï¿½ ï¿½ï¿½Ç¥ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	float bottom = top - (float)windowHeight;
 
-	// Á¤Á¡ ¹è¿­ÀÇ Á¤Á¡ ¼ö¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½è¿­ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	m_vertexCount = 6;
 
-	// ÀÎµ¦½º ¹è¿­ÀÇ ÀÎµ¦½º ¼ö¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+	// ï¿½Îµï¿½ï¿½ï¿½ ï¿½è¿­ï¿½ï¿½ ï¿½Îµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	m_indexCount = m_vertexCount;
 
-	// Á¤Á¡ ¹è¿­À» ¸¸µì´Ï´Ù.
-	VertexType* vertices = new VertexType[m_vertexCount];
-	if (!vertices)
-	{
-		return false;
-	}
+	std::vector<VertexType> vertices(static_cast<std::size_t>(m_vertexCount));
+	std::vector<std::uint32_t> indices(static_cast<std::size_t>(m_indexCount));
 
-	// ÀÎµ¦½º ¹è¿­À» ¸¸µì´Ï´Ù.
-	unsigned long* indices = new unsigned long[m_indexCount];
-	if (!indices)
-	{
-		return false;
-	}
-
-	// Á¤Á¡ ¹è¿­¿¡ µ¥ÀÌÅÍ¸¦·ÎµåÇÕ´Ï´Ù.
-	// Ã¹ ¹øÂ° »ï°¢Çü.
-	vertices[0].position = XMFLOAT3(left, top, 0.0f);  // ¿ÞÂÊ À§
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½è¿­ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Í¸ï¿½ï¿½Îµï¿½ï¿½Õ´Ï´ï¿½.
+	// Ã¹ ï¿½ï¿½Â° ï¿½ï°¢ï¿½ï¿½.
+	vertices[0].position = XMFLOAT3(left, top, 0.0f);  // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½
 	vertices[0].texture = XMFLOAT2(0.0f, 0.0f);
 
-	vertices[1].position = XMFLOAT3(right, bottom, 0.0f);  // ¿À¸¥ÂÊ ¾Æ·¡
+	vertices[1].position = XMFLOAT3(right, bottom, 0.0f);  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Æ·ï¿½
 	vertices[1].texture = XMFLOAT2(1.0f, 1.0f);
 
-	vertices[2].position = XMFLOAT3(left, bottom, 0.0f);  // ¿ÞÂÊ ¾Æ·¡
+	vertices[2].position = XMFLOAT3(left, bottom, 0.0f);  // ï¿½ï¿½ï¿½ï¿½ ï¿½Æ·ï¿½
 	vertices[2].texture = XMFLOAT2(0.0f, 1.0f);
 
-	// µÎ ¹øÂ° »ï°¢Çü.
-	vertices[3].position = XMFLOAT3(left, top, 0.0f);  // ¿ÞÂÊ À§
+	// ï¿½ï¿½ ï¿½ï¿½Â° ï¿½ï°¢ï¿½ï¿½.
+	vertices[3].position = XMFLOAT3(left, top, 0.0f);  // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½
 	vertices[3].texture = XMFLOAT2(0.0f, 0.0f);
 
-	vertices[4].position = XMFLOAT3(right, top, 0.0f);  // ¿À¸¥ÂÊ À§
+	vertices[4].position = XMFLOAT3(right, top, 0.0f);  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½
 	vertices[4].texture = XMFLOAT2(1.0f, 0.0f);
 
-	vertices[5].position = XMFLOAT3(right, bottom, 0.0f);  // ¿À¸¥ÂÊ ¾Æ·¡
+	vertices[5].position = XMFLOAT3(right, bottom, 0.0f);  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Æ·ï¿½
 	vertices[5].texture = XMFLOAT2(1.0f, 1.0f);
 
-	// µ¥ÀÌÅÍ·Î ÀÎµ¦½º ¹è¿­À»·ÎµåÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ï¿½Í·ï¿½ ï¿½Îµï¿½ï¿½ï¿½ ï¿½è¿­ï¿½ï¿½ï¿½Îµï¿½ï¿½Õ´Ï´ï¿½.
 	for(int i=0; i<m_indexCount; i++)
 	{
-		indices[i] = i;
+		indices[static_cast<std::size_t>(i)] = static_cast<std::uint32_t>(i);
 	}
 
-	// Á¤Àû Á¤Á¡ ¹öÆÛÀÇ ¼³¸íÀ» ¼³Á¤ÇÑ´Ù.
-	D3D11_BUFFER_DESC vertexBufferDesc;
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ñ´ï¿½.
+	D3D11_BUFFER_DESC vertexBufferDesc{};
 	vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-	vertexBufferDesc.ByteWidth = sizeof(VertexType) * m_vertexCount;
+	vertexBufferDesc.ByteWidth = static_cast<UINT>(sizeof(VertexType) * m_vertexCount);
 	vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	vertexBufferDesc.CPUAccessFlags = 0;
 	vertexBufferDesc.MiscFlags = 0;
 	vertexBufferDesc.StructureByteStride = 0;
 
-	// subresource ±¸Á¶¿¡ Á¤Á¡ µ¥ÀÌÅÍ¿¡ ´ëÇÑ Æ÷ÀÎÅÍ¸¦ Á¦°øÇÕ´Ï´Ù.
-	D3D11_SUBRESOURCE_DATA vertexData;
-	vertexData.pSysMem = vertices;
+	// subresource ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Í¿ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+	D3D11_SUBRESOURCE_DATA vertexData{};
+	vertexData.pSysMem = vertices.data();
 	vertexData.SysMemPitch = 0;
 	vertexData.SysMemSlicePitch = 0;
 
-	// ÀÌÁ¦ Á¤Á¡ ¹öÆÛ¸¦ ¸¸µì´Ï´Ù.
-	if (FAILED(device->CreateBuffer(&vertexBufferDesc, &vertexData, &m_vertexBuffer)))
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Û¸ï¿½ ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.
+	Microsoft::WRL::ComPtr<ID3D11Buffer> vertexBuffer;
+	if (FAILED(device->CreateBuffer(&vertexBufferDesc, &vertexData, vertexBuffer.GetAddressOf())))
 	{
 		return false;
 	}
 
-	// Á¤Àû ÀÎµ¦½º ¹öÆÛÀÇ ¼³¸íÀ» ¼³Á¤ÇÕ´Ï´Ù.
-	D3D11_BUFFER_DESC indexBufferDesc;
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½Îµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+	D3D11_BUFFER_DESC indexBufferDesc{};
 	indexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-	indexBufferDesc.ByteWidth = sizeof(unsigned long) * m_indexCount;
+	indexBufferDesc.ByteWidth = static_cast<UINT>(sizeof(std::uint32_t) * m_indexCount);
 	indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	indexBufferDesc.CPUAccessFlags = 0;
 	indexBufferDesc.MiscFlags = 0;
 	indexBufferDesc.StructureByteStride = 0;
 
-	// ÇÏÀ§ ¸®¼Ò½º ±¸Á¶¿¡ ÀÎµ¦½º µ¥ÀÌÅÍ¿¡ ´ëÇÑ Æ÷ÀÎÅÍ¸¦ Á¦°øÇÕ´Ï´Ù.
-	D3D11_SUBRESOURCE_DATA indexData;
-	indexData.pSysMem = indices;
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ò½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Îµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Í¿ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+	D3D11_SUBRESOURCE_DATA indexData{};
+	indexData.pSysMem = indices.data();
 	indexData.SysMemPitch = 0;
 	indexData.SysMemSlicePitch = 0;
 
-	// ÀÎµ¦½º ¹öÆÛ¸¦ ¸¸µì´Ï´Ù.
-	if (FAILED(device->CreateBuffer(&indexBufferDesc, &indexData, &m_indexBuffer)))
+	// ï¿½Îµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Û¸ï¿½ ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.
+	Microsoft::WRL::ComPtr<ID3D11Buffer> indexBuffer;
+	if (FAILED(device->CreateBuffer(&indexBufferDesc, &indexData, indexBuffer.GetAddressOf())))
 	{
 		return false;
 	}
 
-	// ÀÌÁ¦ ¹öÅØ½º¿Í ÀÎµ¦½º ¹öÆÛ°¡ »ý¼ºµÇ°í·Îµå µÈ ¹è¿­À» ÇØÁ¦ÇÏ½Ê½Ã¿À.
-	delete[] vertices;
-	vertices = 0;
-
-	delete[] indices;
-	indices = 0;
+	m_vertexBuffer = std::move(vertexBuffer);
+	m_indexBuffer = std::move(indexBuffer);
 
 	return true;
 }
@@ -159,34 +151,24 @@ bool OrthoWindowClass::InitializeBuffers(ID3D11Device* device, int windowWidth, 
 
 void OrthoWindowClass::ShutdownBuffers()
 {
-	// ÀÎµ¦½º ¹öÆÛ¸¦ ÇØÁ¦ÇÕ´Ï´Ù.
-	if (m_indexBuffer)
-	{
-		m_indexBuffer->Release();
-		m_indexBuffer = 0;
-	}
-
-	// ¹öÅØ½º ¹öÆÛ¸¦ ÇØÁ¦ÇÑ´Ù.
-	if (m_vertexBuffer)
-	{
-		m_vertexBuffer->Release();
-		m_vertexBuffer = 0;
-	}
+	m_indexBuffer.Reset();
+	m_vertexBuffer.Reset();
 }
 
 
 void OrthoWindowClass::RenderBuffers(ID3D11DeviceContext* deviceContext)
 {
-	// Á¤Á¡ ¹öÆÛ º¸Æø ¹× ¿ÀÇÁ¼ÂÀ» ¼³Á¤ÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	unsigned int stride = sizeof(VertexType);
 	unsigned int offset = 0;
 
-	// ·»´õ¸µ ÇÒ ¼ö ÀÖµµ·Ï ÀÔ·Â ¾î¼Àºí·¯¿¡¼­ Á¤Á¡ ¹öÆÛ¸¦ È°¼ºÀ¸·Î ¼³Á¤ÇÕ´Ï´Ù.
-	deviceContext->IASetVertexBuffers(0, 1, &m_vertexBuffer, &stride, &offset);
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ ï¿½Öµï¿½ï¿½ï¿½ ï¿½Ô·ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Û¸ï¿½ È°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+	ID3D11Buffer* vertexBuffer = m_vertexBuffer.Get();
+	deviceContext->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
 
-	// ·»´õ¸µ ÇÒ ¼ö ÀÖµµ·Ï ÀÔ·Â ¾î¼Àºí·¯¿¡¼­ ÀÎµ¦½º ¹öÆÛ¸¦ È°¼ºÀ¸·Î ¼³Á¤ÇÕ´Ï´Ù.
-	deviceContext->IASetIndexBuffer(m_indexBuffer, DXGI_FORMAT_R32_UINT, 0);
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ ï¿½Öµï¿½ï¿½ï¿½ ï¿½Ô·ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Îµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Û¸ï¿½ È°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+	deviceContext->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
 
-	// ÀÌ ²ÀÁöÁ¡ ¹öÆÛ¿¡¼­ ·»´õ¸µµÇ¾î¾ßÇÏ´Â ÇÁ¸®¹ÌÆ¼ºê À¯ÇüÀ» ¼³Á¤ÇÕ´Ï´Ù.ÀÌ °æ¿ì¿¡´Â »ï°¢ÇüÀÔ´Ï´Ù.
+	// ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Û¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç¾ï¿½ï¿½ï¿½Ï´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ¼ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.ï¿½ï¿½ ï¿½ï¿½ì¿¡ï¿½ï¿½ ï¿½ï°¢ï¿½ï¿½ï¿½Ô´Ï´ï¿½.
 	deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }

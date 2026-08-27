@@ -1,4 +1,4 @@
-#include "stdafx.h"
+﻿#include "stdafx.h"
 #include "FireShaderClass.h"
 
 
@@ -7,20 +7,23 @@ FireShaderClass::FireShaderClass()
 }
 
 
-FireShaderClass::FireShaderClass(const FireShaderClass& other)
-{
-}
-
-
 FireShaderClass::~FireShaderClass()
 {
+	Shutdown();
 }
 
 
 bool FireShaderClass::Initialize(ID3D11Device* device, HWND hwnd)
 {
 	// 정점 및 픽셀 쉐이더를 초기화합니다.
-	return InitializeShader(device, hwnd, L"./data/fire_vs.hlsl", L"./data/fire_ps.hlsl");
+	ShutdownShader();
+	if (!InitializeShader(device, hwnd, L"./data/fire_vs.hlsl", L"./data/fire_ps.hlsl"))
+	{
+		ShutdownShader();
+		return false;
+	}
+
+	return true;
 }
 
 
@@ -55,17 +58,17 @@ bool FireShaderClass::Render(ID3D11DeviceContext* deviceContext, int indexCount,
 bool FireShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, const WCHAR* vsFilename, const WCHAR* psFilename)
 {
 	HRESULT result;
-	ID3D10Blob* errorMessage = nullptr;
+	Microsoft::WRL::ComPtr<ID3D10Blob> errorMessage;
 
 	// 버텍스 쉐이더 코드를 컴파일한다.
-	ID3D10Blob* vertexShaderBuffer = nullptr;
-	result = D3DCompileFromFile(vsFilename, NULL, NULL, "FireVertexShader", "vs_5_0", D3D10_SHADER_ENABLE_STRICTNESS, 0,	&vertexShaderBuffer, &errorMessage);
+	Microsoft::WRL::ComPtr<ID3D10Blob> vertexShaderBuffer;
+	result = D3DCompileFromFile(vsFilename, NULL, NULL, "FireVertexShader", "vs_5_0", D3D10_SHADER_ENABLE_STRICTNESS, 0, vertexShaderBuffer.ReleaseAndGetAddressOf(), errorMessage.ReleaseAndGetAddressOf());
 	if (FAILED(result))
 	{
 		// 셰이더 컴파일 실패시 오류메시지를 출력합니다.
 		if (errorMessage)
 		{
-			OutputShaderErrorMessage(errorMessage, hwnd, vsFilename);
+			OutputShaderErrorMessage(errorMessage.Get(), hwnd, vsFilename);
 		}
 		// 컴파일 오류가 아니라면 셰이더 파일을 찾을 수 없는 경우입니다.
 		else
@@ -77,14 +80,14 @@ bool FireShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, const WC
 	}
 
 	// 픽셀 쉐이더 코드를 컴파일한다.
-	ID3D10Blob* pixelShaderBuffer = nullptr;
-	result = D3DCompileFromFile(psFilename, NULL, NULL, "FirePixelShader", "ps_5_0", D3D10_SHADER_ENABLE_STRICTNESS, 0, &pixelShaderBuffer, &errorMessage);
+	Microsoft::WRL::ComPtr<ID3D10Blob> pixelShaderBuffer;
+	result = D3DCompileFromFile(psFilename, NULL, NULL, "FirePixelShader", "ps_5_0", D3D10_SHADER_ENABLE_STRICTNESS, 0, pixelShaderBuffer.ReleaseAndGetAddressOf(), errorMessage.ReleaseAndGetAddressOf());
 	if (FAILED(result))
 	{
 		// 셰이더 컴파일 실패시 오류메시지를 출력합니다.
 		if (errorMessage)
 		{
-			OutputShaderErrorMessage(errorMessage, hwnd, psFilename);
+			OutputShaderErrorMessage(errorMessage.Get(), hwnd, psFilename);
 		}
 		// 컴파일 오류가 아니라면 셰이더 파일을 찾을 수 없는 경우입니다.
 		else
@@ -96,14 +99,14 @@ bool FireShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, const WC
 	}
 
 	// 버퍼로부터 정점 셰이더를 생성한다.
-	result = device->CreateVertexShader(vertexShaderBuffer->GetBufferPointer(), vertexShaderBuffer->GetBufferSize(), NULL, &m_vertexShader);
+	result = device->CreateVertexShader(vertexShaderBuffer->GetBufferPointer(), vertexShaderBuffer->GetBufferSize(), NULL, m_vertexShader.ReleaseAndGetAddressOf());
 	if (FAILED(result))
 	{
 		return false;
 	}
 
 	// 버퍼에서 픽셀 쉐이더를 생성합니다.
-	result = device->CreatePixelShader(pixelShaderBuffer->GetBufferPointer(), pixelShaderBuffer->GetBufferSize(), NULL, &m_pixelShader);
+	result = device->CreatePixelShader(pixelShaderBuffer->GetBufferPointer(), pixelShaderBuffer->GetBufferSize(), NULL, m_pixelShader.ReleaseAndGetAddressOf());
 	if (FAILED(result))
 	{
 		return false;
@@ -133,18 +136,11 @@ bool FireShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, const WC
 
 	// 정점 입력 레이아웃을 만듭니다.
 	result = device->CreateInputLayout(polygonLayout, numElements, vertexShaderBuffer->GetBufferPointer(),
-		vertexShaderBuffer->GetBufferSize(), &m_layout);
+		vertexShaderBuffer->GetBufferSize(), m_layout.ReleaseAndGetAddressOf());
 	if (FAILED(result))
 	{
 		return false;
 	}
-
-	// 더 이상 사용되지 않는 정점 셰이더 퍼버와 픽셀 셰이더 버퍼를 해제합니다.
-	vertexShaderBuffer->Release();
-	vertexShaderBuffer = 0;
-
-	pixelShaderBuffer->Release();
-	pixelShaderBuffer = 0;
 
     // 버텍스 쉐이더에있는 동적 행렬 상수 버퍼의 설명을 설정합니다.
 	D3D11_BUFFER_DESC matrixBufferDesc;
@@ -156,7 +152,7 @@ bool FireShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, const WC
 	matrixBufferDesc.StructureByteStride = 0;
 
 	// 이 클래스 내에서 정점 셰이더 상수 버퍼에 액세스 할 수 있도록 행렬 버퍼 포인터를 만듭니다.
-	result = device->CreateBuffer(&matrixBufferDesc, NULL, &m_matrixBuffer);
+	result = device->CreateBuffer(&matrixBufferDesc, NULL, m_matrixBuffer.ReleaseAndGetAddressOf());
 	if(FAILED(result))
 	{
 		return false;
@@ -172,7 +168,7 @@ bool FireShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, const WC
 	noiseBufferDesc.StructureByteStride = 0;
 
 	// 이 클래스 내에서 정점 셰이더 상수 버퍼에 액세스 할 수 있도록 노이즈 버퍼 포인터를 만듭니다.
-	result = device->CreateBuffer(&noiseBufferDesc, NULL, &m_noiseBuffer);
+	result = device->CreateBuffer(&noiseBufferDesc, NULL, m_noiseBuffer.ReleaseAndGetAddressOf());
 	if(FAILED(result))
 	{
 		return false;
@@ -195,7 +191,7 @@ bool FireShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, const WC
 	samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
 
 	// 텍스처 샘플러 상태를 만듭니다.
-    result = device->CreateSamplerState(&samplerDesc, &m_sampleState);
+    result = device->CreateSamplerState(&samplerDesc, m_sampleState.ReleaseAndGetAddressOf());
 	if(FAILED(result))
 	{
 		return false;
@@ -218,7 +214,7 @@ bool FireShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, const WC
     samplerDesc2.MaxLOD = D3D11_FLOAT32_MAX;
 
 	// 텍스처 샘플러 상태를 만듭니다.
-    result = device->CreateSamplerState(&samplerDesc2, &m_sampleState2);
+    result = device->CreateSamplerState(&samplerDesc2, m_sampleState2.ReleaseAndGetAddressOf());
 	if(FAILED(result))
 	{
 		return false;
@@ -234,7 +230,7 @@ bool FireShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, const WC
 	distortionBufferDesc.StructureByteStride = 0;
 
 	// 이 클래스 내에서 픽셀 쉐이더 상수 버퍼에 액세스 할 수 있도록 왜곡 버퍼 포인터를 만듭니다.
-	result = device->CreateBuffer(&distortionBufferDesc, NULL, &m_distortionBuffer);
+	result = device->CreateBuffer(&distortionBufferDesc, NULL, m_distortionBuffer.ReleaseAndGetAddressOf());
 	if(FAILED(result))
 	{
 		return false;
@@ -247,60 +243,28 @@ bool FireShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, const WC
 void FireShaderClass::ShutdownShader()
 {
 	// 왜곡 상수 버퍼를 해제합니다.
-	if (m_distortionBuffer)
-	{
-		m_distortionBuffer->Release();
-		m_distortionBuffer = 0;
-	}
+	m_distortionBuffer.Reset();
 
 	// 두 번째 샘플러 상태를 해제합니다.
-	if (m_sampleState2)
-	{
-		m_sampleState2->Release();
-		m_sampleState2 = 0;
-	}
+	m_sampleState2.Reset();
 
 	// 샘플러 상태를 해제한다.
-	if (m_sampleState)
-	{
-		m_sampleState->Release();
-		m_sampleState = 0;
-	}
+	m_sampleState.Reset();
 
 	// 잡음 상수 버퍼를 해제한다.
-	if (m_noiseBuffer)
-	{
-		m_noiseBuffer->Release();
-		m_noiseBuffer = 0;
-	}
+	m_noiseBuffer.Reset();
 
 	// 행렬 상수 버퍼를 해제합니다.
-	if (m_matrixBuffer)
-	{
-		m_matrixBuffer->Release();
-		m_matrixBuffer = 0;
-	}
+	m_matrixBuffer.Reset();
 
 	// 레이아웃을 해제합니다.
-	if (m_layout)
-	{
-		m_layout->Release();
-		m_layout = 0;
-	}
+	m_layout.Reset();
 
 	// 픽셀 쉐이더를 해제합니다.
-	if (m_pixelShader)
-	{
-		m_pixelShader->Release();
-		m_pixelShader = 0;
-	}
+	m_pixelShader.Reset();
 
 	// 버텍스 쉐이더를 해제합니다.
-	if (m_vertexShader)
-	{
-		m_vertexShader->Release();
-		m_vertexShader = 0;
-	}
+	m_vertexShader.Reset();
 }
 
 
@@ -308,10 +272,6 @@ void FireShaderClass::OutputShaderErrorMessage(ID3D10Blob* errorMessage, HWND hw
 {
 	// 에러 메시지를 출력창에 표시합니다.
 	OutputDebugStringA(reinterpret_cast<const char*>(errorMessage->GetBufferPointer()));
-
-	// 에러 메세지를 반환합니다.
-	errorMessage->Release();
-	errorMessage = 0;
 
 	// 컴파일 에러가 있음을 팝업 메세지로 알려줍니다.
 	MessageBox(hwnd, L"Error compiling shader.", shaderFilename, MB_OK);
@@ -332,7 +292,7 @@ bool FireShaderClass::SetShaderParameters(ID3D11DeviceContext* deviceContext, XM
 
 	// 상수 버퍼의 내용을 쓸 수 있도록 잠급니다.
 	D3D11_MAPPED_SUBRESOURCE mappedResource;
-	if (FAILED(deviceContext->Map(m_matrixBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource)))
+	if (FAILED(deviceContext->Map(m_matrixBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource)))
 	{
 		return false;
 	}
@@ -346,16 +306,16 @@ bool FireShaderClass::SetShaderParameters(ID3D11DeviceContext* deviceContext, XM
 	dataPtr->projection = projectionMatrix;
 
 	// 상수 버퍼의 잠금을 풉니다.
-	deviceContext->Unmap(m_matrixBuffer, 0);
+	deviceContext->Unmap(m_matrixBuffer.Get(), 0);
 
 	// 정점 셰이더에서의 상수 버퍼의 위치를 설정합니다.
 	unsigned int bufferNumber = 0;
 
 	// 마지막으로 정점 셰이더의 상수 버퍼를 바뀐 값으로 바꿉니다.
-	deviceContext->VSSetConstantBuffers(bufferNumber, 1, &m_matrixBuffer);
+	deviceContext->VSSetConstantBuffers(bufferNumber, 1, m_matrixBuffer.GetAddressOf());
 
 	// 쓸 수 있도록 노이즈 상수 버퍼를 잠급니다.
-	if(FAILED(deviceContext->Map(m_noiseBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource)))
+	if(FAILED(deviceContext->Map(m_noiseBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource)))
 	{
 		return false;
 	}
@@ -370,13 +330,13 @@ bool FireShaderClass::SetShaderParameters(ID3D11DeviceContext* deviceContext, XM
 	dataPtr2->padding = 0.0f;
 
 	// 노이즈 상수 버퍼의 잠금을 해제합니다.
-    deviceContext->Unmap(m_noiseBuffer, 0);
+    deviceContext->Unmap(m_noiseBuffer.Get(), 0);
 
 	// 버텍스 쉐이더에서 노이즈 상수 버퍼의 위치를 ​​설정합니다.
 	bufferNumber = 1;
 
 	// 이제 버텍스 쉐이더에서 업데이트 된 값으로 노이즈 상수 버퍼를 설정합니다.
-    deviceContext->VSSetConstantBuffers(bufferNumber, 1, &m_noiseBuffer);
+    deviceContext->VSSetConstantBuffers(bufferNumber, 1, m_noiseBuffer.GetAddressOf());
 
 	// 픽셀 쉐이더에 3 개의 쉐이더 텍스처 리소스를 설정합니다.
 	deviceContext->PSSetShaderResources(0, 1, &fireTexture);
@@ -384,7 +344,7 @@ bool FireShaderClass::SetShaderParameters(ID3D11DeviceContext* deviceContext, XM
 	deviceContext->PSSetShaderResources(2, 1, &alphaTexture);
 
 	// 쓸 수 있도록 왜곡 상수 버퍼를 잠급니다.
-	if(FAILED(deviceContext->Map(m_distortionBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource)))
+	if(FAILED(deviceContext->Map(m_distortionBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource)))
 	{
 		return false;
 	}
@@ -400,13 +360,13 @@ bool FireShaderClass::SetShaderParameters(ID3D11DeviceContext* deviceContext, XM
 	dataPtr3->distortionBias = distortionBias;
 
 	// 왜곡 상수 버퍼의 잠금을 해제합니다.
-    deviceContext->Unmap(m_distortionBuffer, 0);
+    deviceContext->Unmap(m_distortionBuffer.Get(), 0);
 
 	// 픽셀 쉐이더에서 왜곡 상수 버퍼의 위치를 ​​설정합니다.
 	bufferNumber = 0;
 
 	// 이제 픽셀 쉐이더에서 왜곡 상수 버퍼를 업데이트 된 값으로 설정합니다.
-    deviceContext->PSSetConstantBuffers(bufferNumber, 1, &m_distortionBuffer);
+    deviceContext->PSSetConstantBuffers(bufferNumber, 1, m_distortionBuffer.GetAddressOf());
 
 	return true;
 }
@@ -415,15 +375,15 @@ bool FireShaderClass::SetShaderParameters(ID3D11DeviceContext* deviceContext, XM
 void FireShaderClass::RenderShader(ID3D11DeviceContext* deviceContext, int indexCount)
 {
 	// 정점 입력 레이아웃을 설정합니다.
-	deviceContext->IASetInputLayout(m_layout);
+	deviceContext->IASetInputLayout(m_layout.Get());
 
 	// 삼각형을 그릴 정점 셰이더와 픽셀 셰이더를 설정합니다.
-	deviceContext->VSSetShader(m_vertexShader, NULL, 0);
-	deviceContext->PSSetShader(m_pixelShader, NULL, 0);
+	deviceContext->VSSetShader(m_vertexShader.Get(), NULL, 0);
+	deviceContext->PSSetShader(m_pixelShader.Get(), NULL, 0);
 
 	// 픽셀 쉐이더에서 샘플러 상태를 설정합니다.
-	deviceContext->PSSetSamplers(0, 1, &m_sampleState);
-	deviceContext->PSSetSamplers(1, 1, &m_sampleState2);
+	deviceContext->PSSetSamplers(0, 1, m_sampleState.GetAddressOf());
+	deviceContext->PSSetSamplers(1, 1, m_sampleState2.GetAddressOf());
 
 	// 삼각형을 렌더링합니다.
 	deviceContext->DrawIndexed(indexCount, 0, 0);

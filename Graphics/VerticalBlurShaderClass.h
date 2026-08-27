@@ -1,4 +1,6 @@
-#pragma once
+﻿#pragma once
+
+#include <wrl/client.h>
 
 class VerticalBlurShaderClass
 {
@@ -17,7 +19,8 @@ private:
 	};
 public:
 	VerticalBlurShaderClass();
-	VerticalBlurShaderClass(const VerticalBlurShaderClass&);
+	VerticalBlurShaderClass(const VerticalBlurShaderClass&) = delete;
+	VerticalBlurShaderClass& operator=(const VerticalBlurShaderClass&) = delete;
 	~VerticalBlurShaderClass();
 
 	bool Initialize(ID3D11Device*, HWND);
@@ -33,10 +36,10 @@ private:
 	void RenderShader(ID3D11DeviceContext*, int);
 
 private:
-	ID3D11VertexShader* m_vertexShader = nullptr;
-	ID3D11PixelShader* m_pixelShader = nullptr;
-	ID3D11InputLayout* m_layout = nullptr;
-	ID3D11SamplerState* m_sampleState = nullptr;
-	ID3D11Buffer* m_matrixBuffer = nullptr;
-	ID3D11Buffer* m_screenSizeBuffer = nullptr;
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> m_vertexShader;
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> m_pixelShader;
+	Microsoft::WRL::ComPtr<ID3D11InputLayout> m_layout;
+	Microsoft::WRL::ComPtr<ID3D11SamplerState> m_sampleState;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_matrixBuffer;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_screenSizeBuffer;
 };

@@ -1,4 +1,4 @@
-////////////////////////////////////////////////////////////////////////////////
+﻿////////////////////////////////////////////////////////////////////////////////
 // Filename: textureclass.h
 ////////////////////////////////////////////////////////////////////////////////
 #ifndef _TEXTURECLASS_H_
@@ -9,6 +9,7 @@
 // INCLUDES //
 //////////////
 #include <d3d11.h>
+#include <wrl/client.h>
 
 ////////////////////////////////////////////////////////////////////////////////
 // Class name: TextureClass
@@ -17,7 +18,8 @@ class TextureClass
 {
 public:
 	TextureClass();
-	TextureClass(const TextureClass&);
+	TextureClass(const TextureClass&) = delete;
+	TextureClass& operator=(const TextureClass&) = delete;
 	~TextureClass();
 
 	bool Initialize(ID3D11Device*, const WCHAR*);
@@ -26,7 +28,7 @@ public:
 	ID3D11ShaderResourceView* GetTexture();
 
 private:
-	ID3D11ShaderResourceView* m_texture;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_texture;
 };
 
 #endif

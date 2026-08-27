@@ -1,28 +1,31 @@
-///////////////////////////////////////////////////////////////////////////////
+﻿///////////////////////////////////////////////////////////////////////////////
 // Filename: fontclass.cpp
 ///////////////////////////////////////////////////////////////////////////////
 #include "fontclass.h"
 
+#include <cstring>
+#include <utility>
+
 
 FontClass::FontClass()
-{
-	m_Font = nullptr;
-	m_Texture = nullptr;
-}
-
-
-FontClass::FontClass(const FontClass& other)
 {
 }
 
 
 FontClass::~FontClass()
 {
+	Shutdown();
 }
 
 
 bool FontClass::Initialize(ID3D11Device* device, const WCHAR* fontFilename, const WCHAR* textureFilename)
 {
+	Shutdown();
+	if (device == nullptr || fontFilename == nullptr || textureFilename == nullptr)
+	{
+		return false;
+	}
+
 	bool result;
 
 
@@ -30,6 +33,7 @@ bool FontClass::Initialize(ID3D11Device* device, const WCHAR* fontFilename, cons
 	result = LoadFontData(fontFilename);
 	if(!result)
 	{
+		Shutdown();
 		return false;
 	}
 
@@ -37,6 +41,7 @@ bool FontClass::Initialize(ID3D11Device* device, const WCHAR* fontFilename, cons
 	result = LoadTexture(device, textureFilename);
 	if(!result)
 	{
+		Shutdown();
 		return false;
 	}
 
@@ -59,16 +64,7 @@ void FontClass::Shutdown()
 bool FontClass::LoadFontData(const WCHAR* filename)
 {
 	ifstream fin;
-	int i;
-	char temp;
-
-
-	// Create the font spacing buffer.
-	m_Font = new FontType[95];
-	if(!m_Font)
-	{
-		return false;
-	}
+	char temp = 0;
 
 	// Read in the font size and spacing between chars.
 	fin.open(filename);
@@ -76,91 +72,72 @@ bool FontClass::LoadFontData(const WCHAR* filename)
 	{
 		return false;
 	}
+	std::vector<FontType> font(95u);
 
 	// Read in the 95 used ascii characters for text.
-	for(i=0; i<95; i++)
+	for(int i = 0; i < 95; ++i)
 	{
-		fin.get(temp);
-		while(temp != ' ')
+		while (fin.get(temp) && temp != ' ') {}
+		if (!fin)
 		{
-			fin.get(temp);
+			return false;
 		}
-		fin.get(temp);
-		while(temp != ' ')
+		while (fin.get(temp) && temp != ' ') {}
+		if (!fin)
 		{
-			fin.get(temp);
+			return false;
 		}
 
-		fin >> m_Font[i].left;
-		fin >> m_Font[i].right;
-		fin >> m_Font[i].size;
+		FontType& value = font[static_cast<std::size_t>(i)];
+		if (!(fin >> value.left >> value.right >> value.size))
+		{
+			return false;
+		}
 	}
 
-	// Close the file.
-	fin.close();
-
+	m_Font = std::move(font);
 	return true;
 }
 
 
 void FontClass::ReleaseFontData()
 {
-	// Release the font data array.
-	if(m_Font)
-	{
-		delete [] m_Font;
-		m_Font = nullptr;
-	}
-
-	return;
+	m_Font.clear();
 }
 
 
 bool FontClass::LoadTexture(ID3D11Device* device, const WCHAR* filename)
 {
-	bool result;
-
-
-	// Create the texture object.
-	m_Texture = new TextureClass;
-	if(!m_Texture)
+	auto texture = std::make_unique<TextureClass>();
+	if(!texture->Initialize(device, filename))
 	{
 		return false;
 	}
 
-	// Initialize the texture object.
-	result = m_Texture->Initialize(device, filename);
-	if(!result)
-	{
-		return false;
-	}
-
+	m_Texture = std::move(texture);
 	return true;
 }
 
 
 void FontClass::ReleaseTexture()
 {
-	// Release the texture object.
-	if(m_Texture)
-	{
-		m_Texture->Shutdown();
-		delete m_Texture;
-		m_Texture = nullptr;
-	}
-
-	return;
+	m_Texture.reset();
 }
 
 
 ID3D11ShaderResourceView* FontClass::GetTexture()
 {
-	return m_Texture->GetTexture();
+	return m_Texture ? m_Texture->GetTexture() : nullptr;
 }
 
 
 void FontClass::BuildVertexArray(void* vertices, const char* sentence, float drawX, float drawY)
 {
+	if (vertices == nullptr || sentence == nullptr || m_Font.size() != 95u)
+	{
+		return;
+	}
+
 	auto* vertexPtr = static_cast<VertexType*>(vertices);
 	const int numLetters = static_cast<int>(strlen(sentence));
 	int index = 0;
@@ -168,14 +145,14 @@ void FontClass::BuildVertexArray(void* vertices, const char* sentence, float dra
 	// Draw each letter onto a quad.
 	for(int i=0; i<numLetters; i++)
 	{
-		const int letter = static_cast<int>(sentence[i]) - 32;
+		const int letter = static_cast<int>(static_cast<unsigned char>(sentence[i])) - 32;
 
 		// If the letter is a space then just move over three pixels.
 		if(letter == 0)
 		{
 			drawX = drawX + 3.0f;
 		}
-		else
+		else if (letter > 0 && letter < static_cast<int>(m_Font.size()))
 		{
 			// First triangle in quad.
 			vertexPtr[index].position = XMFLOAT3(drawX, drawY, 0.0f);  // Top left.

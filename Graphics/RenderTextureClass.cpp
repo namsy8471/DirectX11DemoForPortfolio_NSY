@@ -1,4 +1,4 @@
-#include "stdafx.h"
+ï»¿#include "stdafx.h"
 #include "RenderTextureClass.h"
 
 
@@ -7,27 +7,29 @@ RenderTextureClass::RenderTextureClass()
 }
 
 
-RenderTextureClass::RenderTextureClass(const RenderTextureClass& other)
-{
-}
-
-
 RenderTextureClass::~RenderTextureClass()
 {
+	Shutdown();
 }
 
 
 bool RenderTextureClass::Initialize(ID3D11Device* device, int textureWidth, int textureHeight, float screenDepth, float screenNear)
 {
-	// ·»´õ¸µ ÅØ½ºÃ³ÀÇ Æø°ú ³ôÀÌ¸¦ ÀúÀåÇÕ´Ï´Ù.
+	Shutdown();
+	if (device == nullptr || textureWidth <= 0 || textureHeight <= 0)
+	{
+		return false;
+	}
+
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ø½ï¿½Ã³ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	m_textureWidth = textureWidth;
 	m_textureHeight = textureHeight;
 
-	// ·»´õ Å¸°Ù ÅØ½ºÃ³ ¼³¸íÀ» ÃÊ±âÈ­ÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ Å¸ï¿½ï¿½ ï¿½Ø½ï¿½Ã³ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­ï¿½Õ´Ï´ï¿½.
 	D3D11_TEXTURE2D_DESC textureDesc;
 	ZeroMemory(&textureDesc, sizeof(textureDesc));
 
-	// ·»´õ Å¸°Ù ÅØ½ºÃ³ ¼³¸íÀ» ¼³Á¤ÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ Å¸ï¿½ï¿½ ï¿½Ø½ï¿½Ã³ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	textureDesc.Width = textureWidth;
 	textureDesc.Height = textureHeight;
 	textureDesc.MipLevels = 1;
@@ -39,45 +41,48 @@ bool RenderTextureClass::Initialize(ID3D11Device* device, int textureWidth, int 
 	textureDesc.CPUAccessFlags = 0;
 	textureDesc.MiscFlags = 0;
 
-	// ·»´õ Å¸°Ù ÅØ½ºÃ³¸¦ ¸¸µì´Ï´Ù.
-	HRESULT result = device->CreateTexture2D(&textureDesc, NULL, &m_renderTargetTexture);
+	// ï¿½ï¿½ï¿½ï¿½ Å¸ï¿½ï¿½ ï¿½Ø½ï¿½Ã³ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.
+	Microsoft::WRL::ComPtr<ID3D11Texture2D> renderTargetTexture;
+	HRESULT result = device->CreateTexture2D(&textureDesc, nullptr, renderTargetTexture.GetAddressOf());
 	if (FAILED(result))
 	{
 		return false;
 	}
 
-	// ·»´õ Å¸°Ù ºäÀÇ ¼³¸íÀ» ¼³Á¤ÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ Å¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
 	renderTargetViewDesc.Format = textureDesc.Format;
 	renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
 	renderTargetViewDesc.Texture2D.MipSlice = 0;
 
-	// ·»´õ Å¸°Ù ºä¸¦ »ý¼ºÇÑ´Ù.
-	result = device->CreateRenderTargetView(m_renderTargetTexture, &renderTargetViewDesc, &m_renderTargetView);
+	// ï¿½ï¿½ï¿½ï¿½ Å¸ï¿½ï¿½ ï¿½ä¸¦ ï¿½ï¿½ï¿½ï¿½ï¿½Ñ´ï¿½.
+	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> renderTargetView;
+	result = device->CreateRenderTargetView(renderTargetTexture.Get(), &renderTargetViewDesc, renderTargetView.GetAddressOf());
 	if (FAILED(result))
 	{
 		return false;
 	}
 
-	// ¼ÎÀÌ´õ ¸®¼Ò½º ºäÀÇ ¼³¸íÀ» ¼³Á¤ÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½Ì´ï¿½ ï¿½ï¿½ï¿½Ò½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc;
 	shaderResourceViewDesc.Format = textureDesc.Format;
 	shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
 	shaderResourceViewDesc.Texture2D.MipLevels = 1;
 
-	// ¼ÎÀÌ´õ ¸®¼Ò½º ºä¸¦ ¸¸µì´Ï´Ù.
-	result = device->CreateShaderResourceView(m_renderTargetTexture, &shaderResourceViewDesc, &m_shaderResourceView);
+	// ï¿½ï¿½ï¿½Ì´ï¿½ ï¿½ï¿½ï¿½Ò½ï¿½ ï¿½ä¸¦ ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> shaderResourceView;
+	result = device->CreateShaderResourceView(renderTargetTexture.Get(), &shaderResourceViewDesc, shaderResourceView.GetAddressOf());
 	if (FAILED(result))
 	{
 		return false;
 	}
 
-	// ±íÀÌ ¹öÆÛÀÇ ±¸Á¶Ã¼¸¦ ÃÊ±âÈ­ ÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ã¼ï¿½ï¿½ ï¿½Ê±ï¿½È­ ï¿½Õ´Ï´ï¿½.
 	D3D11_TEXTURE2D_DESC depthBufferDesc;
 	ZeroMemory(&depthBufferDesc, sizeof(depthBufferDesc));
 
-	// ±íÀÌ ¹öÆÛ ±¸Á¶Ã¼¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ã¼ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	depthBufferDesc.Width = textureWidth;
 	depthBufferDesc.Height = textureHeight;
 	depthBufferDesc.MipLevels = 1;
@@ -90,30 +95,32 @@ bool RenderTextureClass::Initialize(ID3D11Device* device, int textureWidth, int 
 	depthBufferDesc.CPUAccessFlags = 0;
 	depthBufferDesc.MiscFlags = 0;
 
-	// Ã¤¿öÁø ±¸Á¶Ã¼¸¦ »ç¿ëÇÏ¿© ±íÀÌ ¹öÆÛÀÇ ÅØ½ºÃ³¸¦ ¸¸µì´Ï´Ù.
-	result = device->CreateTexture2D(&depthBufferDesc, NULL, &m_depthStencilBuffer);
+	// Ã¤ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ã¼ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ï¿ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ø½ï¿½Ã³ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.
+	Microsoft::WRL::ComPtr<ID3D11Texture2D> depthStencilBuffer;
+	result = device->CreateTexture2D(&depthBufferDesc, nullptr, depthStencilBuffer.GetAddressOf());
 	if(FAILED(result))
 	{
 		return false;
 	}
 
-	// ±íÀÌ ½ºÅÙ½Ç ºä¸¦ ÃÊ±âÈ­ÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ù½ï¿½ ï¿½ä¸¦ ï¿½Ê±ï¿½È­ï¿½Õ´Ï´ï¿½.
 	D3D11_DEPTH_STENCIL_VIEW_DESC depthStencilViewDesc;
 	ZeroMemory(&depthStencilViewDesc, sizeof(depthStencilViewDesc));
 
-	// ±íÀÌ ½ºÅÙ½Ç ºä ±¸Á¶Ã¼¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ù½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ã¼ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	depthStencilViewDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	depthStencilViewDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
 	depthStencilViewDesc.Texture2D.MipSlice = 0;
 
-	// ±íÀÌ ½ºÅÙ½Ç ºä¸¦ ¸¸µì´Ï´Ù.
-	result = device->CreateDepthStencilView(m_depthStencilBuffer, &depthStencilViewDesc, &m_depthStencilView);
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ù½ï¿½ ï¿½ä¸¦ ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.
+	Microsoft::WRL::ComPtr<ID3D11DepthStencilView> depthStencilView;
+	result = device->CreateDepthStencilView(depthStencilBuffer.Get(), &depthStencilViewDesc, depthStencilView.GetAddressOf());
 	if(FAILED(result))
 	{
 		return false;
 	}
 
-	// ·»´õ¸µÀ» À§ÇØ ºäÆ÷Æ®¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     m_viewport.Width = (float)textureWidth;
     m_viewport.Height = (float)textureHeight;
     m_viewport.MinDepth = 0.0f;
@@ -121,11 +128,17 @@ bool RenderTextureClass::Initialize(ID3D11Device* device, int textureWidth, int 
     m_viewport.TopLeftX = 0.0f;
     m_viewport.TopLeftY = 0.0f;
 
-	// Åõ¿µ Çà·ÄÀ» ¼³Á¤ÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	m_projectionMatrix = XMMatrixPerspectiveFovLH(((float)XM_PI / 4.0f), ((float)textureWidth / (float)textureHeight), screenNear, screenDepth);
 
-	// 2D ·»´õ¸µÀ» À§ÇÑ Á÷±³ Åõ¿µ Çà·ÄÀ» ¸¸µì´Ï´Ù.
+	// 2D ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.
 	m_orthoMatrix = XMMatrixOrthographicLH((float)textureWidth, (float)textureHeight, screenNear, screenDepth);
+
+	m_renderTargetTexture.Swap(renderTargetTexture);
+	m_renderTargetView.Swap(renderTargetView);
+	m_shaderResourceView.Swap(shaderResourceView);
+	m_depthStencilBuffer.Swap(depthStencilBuffer);
+	m_depthStencilView.Swap(depthStencilView);
 
 	return true;
 }
@@ -133,64 +146,43 @@ bool RenderTextureClass::Initialize(ID3D11Device* device, int textureWidth, int 
 
 void RenderTextureClass::Shutdown()
 {
-	if(m_depthStencilView)
-	{
-		m_depthStencilView->Release();
-		m_depthStencilView = 0;
-	}
-
-	if(m_depthStencilBuffer)
-	{
-		m_depthStencilBuffer->Release();
-		m_depthStencilBuffer = 0;
-	}
-
-	if(m_shaderResourceView)
-	{
-		m_shaderResourceView->Release();
-		m_shaderResourceView = 0;
-	}
-
-	if (m_renderTargetView)
-	{
-		m_renderTargetView->Release();
-		m_renderTargetView = 0;
-	}
-
-	if (m_renderTargetTexture)
-	{
-		m_renderTargetTexture->Release();
-		m_renderTargetTexture = 0;
-	}
+	m_depthStencilView.Reset();
+	m_depthStencilBuffer.Reset();
+	m_shaderResourceView.Reset();
+	m_renderTargetView.Reset();
+	m_renderTargetTexture.Reset();
+	m_textureWidth = 0;
+	m_textureHeight = 0;
 }
 
 
 void RenderTextureClass::SetRenderTarget(ID3D11DeviceContext* deviceContext)
 {
-	// ·»´õ¸µ ´ë»ó ºä¿Í ±íÀÌ ½ºÅÙ½Ç ¹öÆÛ¸¦ Ãâ·Â ·»´õ ÆÄÀÌÇÁ ¶óÀÎ¿¡ ¹ÙÀÎµùÇÕ´Ï´Ù.
-	deviceContext->OMSetRenderTargets(1, &m_renderTargetView, m_depthStencilView);
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ù½ï¿½ ï¿½ï¿½ï¿½Û¸ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Î¿ï¿½ ï¿½ï¿½ï¿½Îµï¿½ï¿½Õ´Ï´ï¿½.
+	ID3D11RenderTargetView* renderTargetView = m_renderTargetView.Get();
+	deviceContext->OMSetRenderTargets(1, &renderTargetView, m_depthStencilView.Get());
 	
-	// ºäÆ÷Æ®¸¦ ¼³Á¤ÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     deviceContext->RSSetViewports(1, &m_viewport);
 }
 
 
 void RenderTextureClass::ClearRenderTarget(ID3D11DeviceContext* deviceContext, float red, float green, float blue, float alpha)
 {
-	// ¹öÆÛ¸¦ Áö¿ï »öÀ» ¼³Á¤ÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½Û¸ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	float color[4] = { red, green, blue, alpha };
 
-	// ¹é ¹öÆÛ¸¦ Áö¿î´Ù.
-	deviceContext->ClearRenderTargetView(m_renderTargetView, color);
+	// ï¿½ï¿½ ï¿½ï¿½ï¿½Û¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½.
+	deviceContext->ClearRenderTargetView(m_renderTargetView.Get(), color);
 
-	// ±íÀÌ ¹öÆÛ¸¦ Áö¿î´Ù.
-	deviceContext->ClearDepthStencilView(m_depthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Û¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½.
+	deviceContext->ClearDepthStencilView(m_depthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 }
 
 
 ID3D11ShaderResourceView* RenderTextureClass::GetShaderResourceView()
 {
-	return m_shaderResourceView;
+	return m_shaderResourceView.Get();
 }
 
 

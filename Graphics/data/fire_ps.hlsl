@@ -85,7 +85,7 @@ float4 FirePixelShader(PixelInputType input) : SV_TARGET
     alphaColor = alphaTexture.Sample(SampleType2, noiseCoords.xy);
 
 	// 화재의 알파 블렌딩을 불안정하고 왜곡 된 알파 텍스처 값으로 설정합니다.
-	fireColor.a = alphaColor;
+	fireColor.a = alphaColor.a;
 	
     return fireColor;
 }

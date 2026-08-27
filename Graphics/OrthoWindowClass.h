@@ -1,4 +1,10 @@
-#pragma once
+﻿#pragma once
+
+#include <d3d11.h>
+#include <DirectXMath.h>
+#include <wrl/client.h>
+
+using namespace DirectX;
 
 class OrthoWindowClass
 {
@@ -11,7 +17,8 @@ private:
 
 public:
 	OrthoWindowClass();
-	OrthoWindowClass(const OrthoWindowClass&);
+	OrthoWindowClass(const OrthoWindowClass&) = delete;
+	OrthoWindowClass& operator=(const OrthoWindowClass&) = delete;
 	~OrthoWindowClass();
 
 	bool Initialize(ID3D11Device*, int, int);
@@ -26,8 +33,8 @@ private:
 	void RenderBuffers(ID3D11DeviceContext*);
 
 private:
-	ID3D11Buffer* m_vertexBuffer = nullptr;
-	ID3D11Buffer* m_indexBuffer = nullptr;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_vertexBuffer;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_indexBuffer;
 	int m_vertexCount = 0;
 	int m_indexCount = 0;
 };

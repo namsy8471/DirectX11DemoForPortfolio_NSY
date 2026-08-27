@@ -1,7 +1,9 @@
-#include "stdafx.h"
+ï»¿#include "stdafx.h"
 #include "skydomeclass.h"
 
 #include <fstream>
+#include <utility>
+#include <vector>
 using namespace std;
 
 
@@ -10,34 +12,37 @@ SkyDomeClass::SkyDomeClass()
 }
 
 
-SkyDomeClass::SkyDomeClass(const SkyDomeClass& other)
-{
-}
-
-
 SkyDomeClass::~SkyDomeClass()
 {
+	Shutdown();
 }
 
 
 bool SkyDomeClass::Initialize(ID3D11Device* device)
 {
-	// ½ºÄ«ÀÌ µ¼ ¸ðµ¨ Á¤º¸¸¦ ÀÐ¾î¿É´Ï´Ù.
+	Shutdown();
+	if (device == nullptr)
+	{
+		return false;
+	}
+
+	// ï¿½ï¿½Ä«ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ð¾ï¿½É´Ï´ï¿½.
 	if(!LoadSkyDomeModel("./data/skydome.txt"))
 	{
 		return false;
 	}
 
-	// ½ºÄ«ÀÌ µ¼À» Á¤Á¡¿¡ ·ÎµåÇÏ°í ·»´õ¸µÀ» À§ÇØ ÀÎµ¦½º ¹öÆÛ¸¦ ·ÎµåÇÕ´Ï´Ù.
+	// ï¿½ï¿½Ä«ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Îµï¿½ï¿½Ï°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Îµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Û¸ï¿½ ï¿½Îµï¿½ï¿½Õ´Ï´ï¿½.
 	if(!InitializeBuffers(device))
 	{
+		Shutdown();
 		return false;
 	}
 
-	// ½ºÄ«ÀÌ µ¼ ²À´ë±â¿¡ »ö»óÀ» ¼³Á¤ÇÕ´Ï´Ù.
+	// ï¿½ï¿½Ä«ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½â¿¡ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	m_apexColor = XMFLOAT4(0.0f, 0.15f, 0.66f, 1.0f);
 	
-	// ½ºÄ«ÀÌ µ¼ÀÇ Áß½É¿¡ »ö»óÀ» ¼³Á¤ÇÕ´Ï´Ù.
+	// ï¿½ï¿½Ä«ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ß½É¿ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	m_centerColor =  XMFLOAT4(0.2f, 0.38f, 0.66f, 1.0f);
 	
 	return true;
@@ -46,17 +51,17 @@ bool SkyDomeClass::Initialize(ID3D11Device* device)
 
 void SkyDomeClass::Shutdown()
 {
-	// ½ºÄ«ÀÌ µ¼ ·»´õ¸µ¿¡ »ç¿ëµÈ Á¤Á¡ ¹× ÀÎµ¦½º ¹öÆÛ¸¦ ÇØÁ¦ÇÕ´Ï´Ù.
+	// ï¿½ï¿½Ä«ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Îµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Û¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	ReleaseBuffers();
 
-	// ½ºÄ«ÀÌ µ¼ ¸ðµ¨À» ÇØÁ¦ÇÕ´Ï´Ù.
+	// ï¿½ï¿½Ä«ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	ReleaseSkyDomeModel();
 }
 
 
 void SkyDomeClass::Render(ID3D11DeviceContext* deviceContext)
 {
-	// ½ºÄ«ÀÌ µ¼À» ·»´õ¸µ ÇÕ´Ï´Ù.
+	// ï¿½ï¿½Ä«ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Õ´Ï´ï¿½.
 	RenderBuffers(deviceContext);
 }
 
@@ -81,142 +86,133 @@ XMFLOAT4 SkyDomeClass::GetCenterColor()
 
 bool SkyDomeClass::LoadSkyDomeModel(const char* filename)
 {
-	// ¸ðµ¨ ÆÄÀÏÀ» ¿±´Ï´Ù.
-	ifstream fin;
-	fin.open(filename);
+	if (filename == nullptr)
+	{
+		return false;
+	}
+
+	ifstream fin(filename);
 	
-	// ÆÄÀÏÀ» ¿­ ¼ö ¾øÀ¸¸é Á¾·áÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 	if(fin.fail())
 	{
 		return false;
 	}
 
-	// ¹öÅØ½º Ä«¿îÆ®ÀÇ °ª±îÁö ÀÐ´Â´Ù.
+	// ï¿½ï¿½ï¿½Ø½ï¿½ Ä«ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ð´Â´ï¿½.
 	char input = 0;
-	fin.get(input);
-	while(input != ':')
-	{
-		fin.get(input);
-	}
-
-	// ¹öÅØ½º Ä«¿îÆ®¸¦ ÀÐ´Â´Ù.
-	fin >> m_vertexCount;
-
-	// ÀÎµ¦½ºÀÇ ¼ö¸¦ Á¤Á¡ ¼ö¿Í °°°Ô ¼³Á¤ÇÕ´Ï´Ù.
-	m_indexCount = m_vertexCount;
-
-	// ÀÐ¾î µéÀÎ Á¤Á¡ °³¼ö¸¦ »ç¿ëÇÏ¿© ¸ðµ¨À» ¸¸µì´Ï´Ù.
-	m_model = new ModelType[m_vertexCount];
-	if(!m_model)
+	while (fin.get(input) && input != ':') {}
+	if (!fin)
 	{
 		return false;
 	}
 
-	// µ¥ÀÌÅÍÀÇ ½ÃÀÛ ºÎºÐ±îÁö ÀÐ´Â´Ù.
-	fin.get(input);
-	while(input != ':')
+	// ï¿½ï¿½ï¿½Ø½ï¿½ Ä«ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½Ð´Â´ï¿½.
+	int vertexCount = 0;
+	if (!(fin >> vertexCount) || vertexCount <= 0)
 	{
-		fin.get(input);
+		return false;
+	}
+
+	std::vector<ModelType> model(static_cast<std::size_t>(vertexCount));
+
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ÎºÐ±ï¿½ï¿½ï¿½ ï¿½Ð´Â´ï¿½.
+	while (fin.get(input) && input != ':') {}
+	if (!fin)
+	{
+		return false;
 	}
 	fin.get(input);
 	fin.get(input);
 
-	// ¹öÅØ½º µ¥ÀÌÅÍ¸¦ ÀÐ½À´Ï´Ù.
-	for(int i=0; i<m_vertexCount; i++)
+	// ï¿½ï¿½ï¿½Ø½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½Ð½ï¿½ï¿½Ï´ï¿½.
+	for(int i = 0; i < vertexCount; ++i)
 	{
-		fin >> m_model[i].x >> m_model[i].y >> m_model[i].z;
-		fin >> m_model[i].tu >> m_model[i].tv;
-		fin >> m_model[i].nx >> m_model[i].ny >> m_model[i].nz;
+		ModelType& value = model[static_cast<std::size_t>(i)];
+		if (!(fin >> value.x >> value.y >> value.z >>
+			value.tu >> value.tv >> value.nx >> value.ny >> value.nz))
+		{
+			return false;
+		}
 	}
 
-	// ¸ðµ¨ ÆÄÀÏÀ» ´Ý´Â´Ù.
-	fin.close();
-
+	m_vertexCount = vertexCount;
+	m_indexCount = vertexCount;
+	m_model = std::move(model);
 	return true;
 }
 
 
 void SkyDomeClass::ReleaseSkyDomeModel()
 {
-	if(m_model)
-	{
-		delete [] m_model;
-		m_model = 0;
-	}
+	m_model.clear();
+	m_vertexCount = 0;
+	m_indexCount = 0;
 }
 
 
 bool SkyDomeClass::InitializeBuffers(ID3D11Device* device)
 {
-	// Á¤Á¡ ¹è¿­À» ¸¸µì´Ï´Ù.
-	VertexType* vertices = new VertexType[m_vertexCount];
-	if(!vertices)
+	if (device == nullptr || m_model.size() != static_cast<std::size_t>(m_vertexCount))
 	{
 		return false;
 	}
+	std::vector<VertexType> vertices(static_cast<std::size_t>(m_vertexCount));
+	std::vector<std::uint32_t> indices(static_cast<std::size_t>(m_indexCount));
 
-	// ÀÎµ¦½º ¹è¿­À» ¸¸µì´Ï´Ù.
-	unsigned long* indices = new unsigned long[m_indexCount];
-	if(!indices)
-	{
-		return false;
-	}
-
-	// Á¤Á¡ ¹è¿­°ú ÀÎµ¦½º ¹è¿­À» µ¥ÀÌÅÍ·Î ·ÎµåÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½è¿­ï¿½ï¿½ ï¿½Îµï¿½ï¿½ï¿½ ï¿½è¿­ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Í·ï¿½ ï¿½Îµï¿½ï¿½Õ´Ï´ï¿½.
 	for(int i=0; i<m_vertexCount; i++)
 	{
-		vertices[i].position = XMFLOAT3(m_model[i].x, m_model[i].y, m_model[i].z);
-		indices[i] = i;
+		vertices[static_cast<std::size_t>(i)].position = XMFLOAT3(m_model[static_cast<std::size_t>(i)].x, m_model[static_cast<std::size_t>(i)].y, m_model[static_cast<std::size_t>(i)].z);
+		indices[static_cast<std::size_t>(i)] = static_cast<std::uint32_t>(i);
 	}
 
-	// Á¤Á¡ ¹öÆÛÀÇ ±¸Á¶Ã¼¸¦ ¼³Á¤ÇÑ´Ù.
-	D3D11_BUFFER_DESC vertexBufferDesc;
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ã¼ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ñ´ï¿½.
+	D3D11_BUFFER_DESC vertexBufferDesc{};
     vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-    vertexBufferDesc.ByteWidth = sizeof(VertexType) * m_vertexCount;
+	vertexBufferDesc.ByteWidth = static_cast<UINT>(sizeof(VertexType) * m_vertexCount);
     vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     vertexBufferDesc.CPUAccessFlags = 0;
     vertexBufferDesc.MiscFlags = 0;
 	vertexBufferDesc.StructureByteStride = 0;
 
-	// subresource ±¸Á¶¿¡ Á¤Á¡ µ¥ÀÌÅÍ¿¡ ´ëÇÑ Æ÷ÀÎÅÍ¸¦ Á¦°øÇÕ´Ï´Ù.
-	D3D11_SUBRESOURCE_DATA vertexData;
-    vertexData.pSysMem = vertices;
+	// subresource ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Í¿ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+	D3D11_SUBRESOURCE_DATA vertexData{};
+	vertexData.pSysMem = vertices.data();
 	vertexData.SysMemPitch = 0;
 	vertexData.SysMemSlicePitch = 0;
 
-	// ÀÌÁ¦ ¸¶Ä§³» Á¤Á¡ ¹öÆÛ¸¦ ¸¸µì´Ï´Ù.
-	if(FAILED(device->CreateBuffer(&vertexBufferDesc, &vertexData, &m_vertexBuffer)))
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä§ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Û¸ï¿½ ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.
+	Microsoft::WRL::ComPtr<ID3D11Buffer> vertexBuffer;
+	if(FAILED(device->CreateBuffer(&vertexBufferDesc, &vertexData, vertexBuffer.GetAddressOf())))
 	{
 		return false;
 	}
 
-	// ÀÎµ¦½º ¹öÆÛÀÇ ±¸Á¶Ã¼¸¦ ¼³Á¤ÇÕ´Ï´Ù.
-	D3D11_BUFFER_DESC indexBufferDesc;
+	// ï¿½Îµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ã¼ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+	D3D11_BUFFER_DESC indexBufferDesc{};
     indexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-    indexBufferDesc.ByteWidth = sizeof(unsigned long) * m_indexCount;
+	indexBufferDesc.ByteWidth = static_cast<UINT>(sizeof(std::uint32_t) * m_indexCount);
     indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
     indexBufferDesc.CPUAccessFlags = 0;
     indexBufferDesc.MiscFlags = 0;
 	indexBufferDesc.StructureByteStride = 0;
 
-	// ÇÏÀ§ ¸®¼Ò½º ±¸Á¶¿¡ ÀÎµ¦½º µ¥ÀÌÅÍ¿¡ ´ëÇÑ Æ÷ÀÎÅÍ¸¦ Á¦°øÇÕ´Ï´Ù.
-	D3D11_SUBRESOURCE_DATA indexData;
-    indexData.pSysMem = indices;
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ò½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Îµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Í¿ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+	D3D11_SUBRESOURCE_DATA indexData{};
+	indexData.pSysMem = indices.data();
 	indexData.SysMemPitch = 0;
 	indexData.SysMemSlicePitch = 0;
 
-	// ÀÎµ¦½º ¹öÆÛ¸¦ ¸¸µì´Ï´Ù.
-	if(FAILED(device->CreateBuffer(&indexBufferDesc, &indexData, &m_indexBuffer)))
+	// ï¿½Îµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Û¸ï¿½ ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.
+	Microsoft::WRL::ComPtr<ID3D11Buffer> indexBuffer;
+	if(FAILED(device->CreateBuffer(&indexBufferDesc, &indexData, indexBuffer.GetAddressOf())))
 	{
 		return false;
 	}
 
-	// ÀÌÁ¦ ¹öÅØ½º¿Í ÀÎµ¦½º ¹öÆÛ°¡ »ý¼ºµÇ°í·Îµå µÈ ¹è¿­À» ÇØÁ¦ÇÏ½Ê½Ã¿À.
-	delete [] vertices;
-	vertices = 0;
-
-	delete [] indices;
-	indices = 0;
+	m_vertexBuffer = std::move(vertexBuffer);
+	m_indexBuffer = std::move(indexBuffer);
 
 	return true;
 }
@@ -224,34 +220,24 @@ bool SkyDomeClass::InitializeBuffers(ID3D11Device* device)
 
 void SkyDomeClass::ReleaseBuffers()
 {
-	// ÀÎµ¦½º ¹öÆÛ¸¦ ÇØÁ¦ÇÕ´Ï´Ù.
-	if(m_indexBuffer)
-	{
-		m_indexBuffer->Release();
-		m_indexBuffer = 0;
-	}
-
-	// ¹öÅØ½º ¹öÆÛ¸¦ ÇØÁ¦ÇÑ´Ù.
-	if(m_vertexBuffer)
-	{
-		m_vertexBuffer->Release();
-		m_vertexBuffer = 0;
-	}
+	m_indexBuffer.Reset();
+	m_vertexBuffer.Reset();
 }
 
 
 void SkyDomeClass::RenderBuffers(ID3D11DeviceContext* deviceContext)
 {
-	// Á¤Á¡ ¹öÆÛ º¸Æø ¹× ¿ÀÇÁ¼ÂÀ» ¼³Á¤ÇÕ´Ï´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     unsigned int stride = sizeof(VertexType); 
 	unsigned int offset = 0;
     
-	// ·»´õ¸µ ÇÒ ¼ö ÀÖµµ·Ï ÀÔ·Â ¾î¼Àºí·¯¿¡¼­ Á¤Á¡ ¹öÆÛ¸¦ È°¼ºÀ¸·Î ¼³Á¤ÇÕ´Ï´Ù.
-	deviceContext->IASetVertexBuffers(0, 1, &m_vertexBuffer, &stride, &offset);
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ ï¿½Öµï¿½ï¿½ï¿½ ï¿½Ô·ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Û¸ï¿½ È°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+	ID3D11Buffer* vertexBuffer = m_vertexBuffer.Get();
+	deviceContext->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
 
-    // ·»´õ¸µ ÇÒ ¼ö ÀÖµµ·Ï ÀÔ·Â ¾î¼Àºí·¯¿¡¼­ ÀÎµ¦½º ¹öÆÛ¸¦ È°¼ºÀ¸·Î ¼³Á¤ÇÕ´Ï´Ù.
-	deviceContext->IASetIndexBuffer(m_indexBuffer, DXGI_FORMAT_R32_UINT, 0);
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ ï¿½Öµï¿½ï¿½ï¿½ ï¿½Ô·ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Îµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Û¸ï¿½ È°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+	deviceContext->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
 
-    // ÀÌ ²ÀÁöÁ¡ ¹öÆÛ¿¡¼­ ·»´õ¸µµÇ¾î¾ßÇÏ´Â ÇÁ¸®¹ÌÆ¼ºê À¯ÇüÀ» ¼³Á¤ÇÕ´Ï´Ù.ÀÌ °æ¿ì¿¡´Â »ï°¢ÇüÀÔ´Ï´Ù.
+    // ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Û¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç¾ï¿½ï¿½ï¿½Ï´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ¼ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.ï¿½ï¿½ ï¿½ï¿½ì¿¡ï¿½ï¿½ ï¿½ï°¢ï¿½ï¿½ï¿½Ô´Ï´ï¿½.
 	deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }

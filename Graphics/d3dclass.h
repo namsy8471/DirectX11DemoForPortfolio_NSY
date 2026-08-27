@@ -1,4 +1,4 @@
-////////////////////////////////////////////////////////////////////////////////
+ï»¿////////////////////////////////////////////////////////////////////////////////
 // Filename: d3dclass.h
 ////////////////////////////////////////////////////////////////////////////////
 #ifndef _D3DCLASS_H_
@@ -19,6 +19,7 @@
 #include <d3dcommon.h>
 #include <d3d11.h>
 #include <directxmath.h>
+#include <wrl/client.h>
 
 #include "AlignedAllocationPolicy.h"
 
@@ -31,14 +32,15 @@ class D3DClass : public AlignedAllocationPolicy<16>
 {
 public:
 	D3DClass();
-	D3DClass(const D3DClass&);
+	D3DClass(const D3DClass&) = delete;
+	D3DClass& operator=(const D3DClass&) = delete;
 	~D3DClass();
 
 	bool Initialize(int, int, bool, HWND, bool, float, float);
 	void Shutdown();
 	
 	void BeginScene(float, float, float, float);
-	void EndScene();
+	[[nodiscard]] bool EndScene() noexcept;
 
 	ID3D11Device* GetDevice();
 	ID3D11DeviceContext* GetDeviceContext();
@@ -61,27 +63,27 @@ public:
 	void SetBackBufferRenderTarget();
 	void ResetViewport();
 	
-	// Åõ¸í °´Ã¼¿ë ±íÀÌ ½ºÅÙ½Ç »óÅÂ (±íÀÌ Å×½ºÆ® ON, ±íÀÌ ¾²±â OFF)
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã¼ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ù½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ ï¿½×½ï¿½Æ® ON, ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ OFF)
 	void EnableDepthTestingWithoutWrites();
 	void DisableDepthTestingWithoutWrites();
 
 private:
-	// °øÅë ºí·»µù »óÅÂ ¼³Á¤ À¯Æ¿¸®Æ¼·Î Áßº¹ Á¦°Å
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Æ¿ï¿½ï¿½Æ¼ï¿½ï¿½ ï¿½ßºï¿½ ï¿½ï¿½ï¿½ï¿½
 	void SetBlendState(ID3D11BlendState* state);
 
 private:
 	bool m_vsync_enabled;
 	int m_videoCardMemory;
 	char m_videoCardDescription[128];
-	IDXGISwapChain* m_swapChain;
-	ID3D11Device* m_device;
-	ID3D11DeviceContext* m_deviceContext;
-	ID3D11RenderTargetView* m_renderTargetView;
-	ID3D11Texture2D* m_depthStencilBuffer;
-	ID3D11DepthStencilState* m_depthStencilState;
-	ID3D11DepthStencilView* m_depthStencilView;
-	ID3D11RasterizerState* m_rasterState;
-	ID3D11RasterizerState* m_rasterStateNoCulling = nullptr;
+	Microsoft::WRL::ComPtr<IDXGISwapChain> m_swapChain;
+	Microsoft::WRL::ComPtr<ID3D11Device> m_device;
+	Microsoft::WRL::ComPtr<ID3D11DeviceContext> m_deviceContext;
+	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_renderTargetView;
+	Microsoft::WRL::ComPtr<ID3D11Texture2D> m_depthStencilBuffer;
+	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_depthStencilState;
+	Microsoft::WRL::ComPtr<ID3D11DepthStencilView> m_depthStencilView;
+	Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_rasterState;
+	Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_rasterStateNoCulling;
 
 	XMMATRIX m_projectionMatrix;
 	XMMATRIX m_worldMatrix;
@@ -89,11 +91,11 @@ private:
 
 	D3D11_VIEWPORT m_viewport;
 
-	ID3D11DepthStencilState* m_depthDisabledStencilState;
-	ID3D11DepthStencilState* m_depthTestNoWriteState = nullptr;  // ±íÀÌ Å×½ºÆ® ON, ¾²±â OFF
+	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_depthDisabledStencilState;
+	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_depthTestNoWriteState;  // ï¿½ï¿½ï¿½ï¿½ ï¿½×½ï¿½Æ® ON, ï¿½ï¿½ï¿½ï¿½ OFF
 
-	ID3D11BlendState* m_alphaEnableBlendingState;
-	ID3D11BlendState* m_alphaDisableBlendingState;
+	Microsoft::WRL::ComPtr<ID3D11BlendState> m_alphaEnableBlendingState;
+	Microsoft::WRL::ComPtr<ID3D11BlendState> m_alphaDisableBlendingState;
 };
 
 #endif

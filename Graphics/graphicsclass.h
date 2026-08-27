@@ -1,185 +1,121 @@
-////////////////////////////////////////////////////////////////////////////////
-// Filename: graphicsclass.h
-////////////////////////////////////////////////////////////////////////////////
-#ifndef _GRAPHICSCLASS_H_
-#define _GRAPHICSCLASS_H_
+#pragma once
 
+#include "Engine/IGame.h"
+#include "Engine/Core/ScopedResource.h"
+#include "Engine/Scene/SceneDefinition.h"
 
-///////////////////////
-// MY CLASS INCLUDES //
-///////////////////////
-#include "stdafx.h"
-#include "d3dclass.h"
-#include "cameraclass.h"
-
-// Input
-#include "inputclass.h"
-
-// Sound
-#include "SoundClass.h"
-
-// Model(3D)
-#include "modelclass.h"
-#include "textureshaderclass.h"
-
-// Bitmap(2D)
-#include "bitmapclass.h"
-
-// Text
-#include "textclass.h"
-#include "fontshaderclass.h"
-
-// Light class
-#include "LightClass.h"
-#include "lightshaderclass.h"
-
-// Shadow class
-#include "ShadowShaderClass.h"
-#include "RenderTextureClass.h"
-#include "DepthShaderClass.h"
-#include "OrthoWindowClass.h"
-#include "SoftShadowShaderClass.h"
-#include "HorizontalBlurShaderClass.h"
-#include "VerticalBlurShaderClass.h"
-
-// Terrain & Terrain Shader
-#include "TerrainClass.h"
-#include "TerrainShaderClass.h"
-
-// Skydorm
-#include "SkyDomeClass.h"
-#include "SkyDomeShaderClass.h"
-
-// FireShader
-#include "ModelClassForNoiseFilter.h"
-#include "FireShaderClass.h"
-
-// Foliage
-#include "foliageclass.h"
-#include "foliageshaderclass.h"
-
-
+#include <memory>
 #include <vector>
 
-#define MAX_OBJS 4
-/////////////
-// GLOBALS //
-/////////////
-const bool FULL_SCREEN = false;
-const bool VSYNC_ENABLED = false;
-const float SCREEN_DEPTH = 1000.0f;
-const float SCREEN_NEAR = 0.1f;
+#include <directxmath.h>
 
-const int SHADOWMAP_WIDTH = 1024;
-const int SHADOWMAP_HEIGHT = 1024;
+class BitmapClass;
+class CameraClass;
+class D3DClass;
+class FireShaderClass;
+class FoliageClass;
+class FoliageShaderClass;
+class InputClass;
+class LightClass;
+class ModelClass;
+class ModelClassForNoiseFilter;
+class SkyDomeClass;
+class SkyDomeShaderClass;
+class SoundClass;
+class TerrainClass;
+class TextClass;
+class TextureShaderClass;
 
+namespace Engine
+{
+	class FirstPersonCameraController;
+	namespace Rendering
+	{
+		class SoftShadowPipeline;
+	}
+	namespace Scene
+	{
+		class GameObject;
+	}
+}
 
-////////////////////////////////////////////////////////////////////////////////
-// Class name: GraphicsClass
-////////////////////////////////////////////////////////////////////////////////
-class GraphicsClass
+// Concrete game supplied to the reusable Engine::Application runtime.
+class GraphicsClass final : public Engine::IGame
 {
 public:
-	GraphicsClass();
-	GraphicsClass(const GraphicsClass&);
-	~GraphicsClass();
+	explicit GraphicsClass(
+		Engine::Scene::SceneDefinition sceneDefinition =
+			Engine::Scene::SceneDefinition::CreatePortfolioDemo());
+	~GraphicsClass() override;
 
-	bool Initialize(int, int, HWND, HINSTANCE);
-	void Shutdown();
-	bool Frame(int, int, float);
+	GraphicsClass(const GraphicsClass&) = delete;
+	GraphicsClass& operator=(const GraphicsClass&) = delete;
 
+	bool Initialize(const Engine::NativeWindow& window) override;
+	Engine::UpdateResult Update(const Engine::FrameContext& frame) override;
+	bool Render(const Engine::FrameContext& frame) override;
+	void Shutdown() noexcept override;
 
-	CameraClass* GetCam();
 private:
-
-	enum class StageEnum {
-		Title = 0,
-		Stage
+	struct RenderSettings
+	{
+		static constexpr bool Vsync = false;
+		static constexpr bool FullScreen = false;
+		static constexpr float ScreenDepth = 1000.0f;
+		static constexpr float ScreenNear = 0.1f;
 	};
 
-	bool HandleInput(float);
+	enum class Stage
+	{
+		Title,
+		Hunt
+	};
+
+	bool InitializeResources(
+		int screenWidth,
+		int screenHeight,
+		HWND__* window,
+		HINSTANCE__* instance);
+	Engine::UpdateResult UpdateScene(const Engine::FrameContext& frame);
+	Engine::UpdateResult HandleInput(float frameTime);
 	void TestIntersection();
-	bool RaySphereIntersect(XMFLOAT3, XMFLOAT3, float);
 
-	bool RenderSceneToTexture();
-	bool RenderBlackAndWhiteShadows();
-	bool DownSampleTexture();
-	bool RenderHorizontalBlurToTexture();
-	bool RenderVerticalBlurToTexture();
-	bool UpSampleTexture();
-	bool Render(float);
+	bool RenderScene(float frameTime);
 
-private:
-	
-	StageEnum currentStage = StageEnum::Title;
-
-	unsigned int wholeObj;
-	unsigned int wholePoly;
-
-	// For input
-	InputClass* m_Input = nullptr;
-	bool m_beginCheck = false;
+	Stage m_stage = Stage::Title;
+	unsigned int m_objectCount = 0;
+	unsigned int m_polygonCount = 0;
+	bool m_primaryActionWasDown = false;
 	int m_screenWidth = 0;
 	int m_screenHeight = 0;
+	float m_lightPositionX = -5.0f;
+	float m_fireAnimationTime = 0.0f;
+	Engine::Scene::SceneDefinition m_sceneDefinition;
 
-	// For Sound
-	SoundClass* m_Sound = nullptr;
+	Engine::ScopedResource<D3DClass> m_d3d;
+	std::unique_ptr<CameraClass> m_camera;
+	Engine::ScopedResource<InputClass> m_input;
+	std::unique_ptr<Engine::FirstPersonCameraController> m_cameraController;
+	Engine::ScopedResource<SoundClass> m_sound;
 
-	D3DClass* m_D3D;
-	CameraClass* m_Camera;
+	std::vector<std::unique_ptr<Engine::Scene::GameObject>> m_gameObjects;
+	Engine::ScopedResource<BitmapClass> m_mouseCursor;
+	std::vector<Engine::ScopedResource<BitmapClass>> m_crosshairs;
+	Engine::ScopedResource<TextureShaderClass> m_textureShader;
+	Engine::ScopedResource<TextClass> m_text;
 
-	// For model and Bitmaps
-	vector<ModelClass*> m_Models;
-	BitmapClass* m_MouseCursor = nullptr;
-	vector<BitmapClass*> m_Crosshairs;
+	Engine::ScopedResource<ModelClassForNoiseFilter> m_fireModel;
+	Engine::ScopedResource<FireShaderClass> m_fireShader;
 
+	Engine::ScopedResource<TerrainClass> m_terrain;
+	std::unique_ptr<LightClass> m_light;
+	std::unique_ptr<Engine::Rendering::SoftShadowPipeline> m_softShadowPipeline;
 
-	TextureShaderClass* m_TextureShader;
+	Engine::ScopedResource<SkyDomeClass> m_skyDome;
+	Engine::ScopedResource<SkyDomeShaderClass> m_skyDomeShader;
+	Engine::ScopedResource<FoliageClass> m_foliage;
+	Engine::ScopedResource<FoliageShaderClass> m_foliageShader;
 
-	const WCHAR* obj_Names[MAX_OBJS];
-	const WCHAR* tex_Names[MAX_OBJS];
-	const WCHAR* bit_Names[2];
-
-	// For Text
-	TextClass* m_Text;
-
-	// For Fire Effect
-	ModelClassForNoiseFilter* m_ModelForFire = nullptr;
-	FireShaderClass* m_FireShader = nullptr;
-
-	// For Terrain
-	TerrainClass* m_Terrain;
-	TerrainShaderClass* m_TerrainShader;
-
-	// For Light
-	LightShaderClass* m_LightShader;
-	LightClass* m_Light;
-
-	// For Render Texture
-	RenderTextureClass* m_RenderTexture;
-	RenderTextureClass* m_BlackWhiteRenderTexture = nullptr;
-	RenderTextureClass* m_DownSampleTexure = nullptr;
-	RenderTextureClass* m_HorizontalBlurTexture = nullptr;
-	RenderTextureClass* m_VerticalBlurTexture = nullptr;
-	RenderTextureClass* m_UpSampleTexure = nullptr;
-
-	// For shadow
-	DepthShaderClass* m_DepthShader;
-	ShadowShaderClass* m_ShadowShader;
-	HorizontalBlurShaderClass* m_HorizontalBlurShader = nullptr;
-	VerticalBlurShaderClass* m_VerticalBlurShader = nullptr;
-	SoftShadowShaderClass* m_SoftShadowShader = nullptr;
-
-	OrthoWindowClass* m_SmallWindow = nullptr;
-	OrthoWindowClass* m_FullScreenWindow = nullptr;
-	
-	// For SkyDome
-	SkyDomeClass* m_SkyDome = nullptr;
-	SkyDomeShaderClass* m_SkyDomeShader = nullptr;
-
-	// For foliage
-	FoliageClass* m_Foliage = nullptr;
-	FoliageShaderClass* m_FoliageShader = nullptr;
 };
 
-#endif
+using PortfolioGame = GraphicsClass;

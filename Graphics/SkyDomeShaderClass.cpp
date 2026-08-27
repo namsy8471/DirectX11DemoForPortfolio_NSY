@@ -7,20 +7,23 @@ SkyDomeShaderClass::SkyDomeShaderClass()
 }
 
 
-SkyDomeShaderClass::SkyDomeShaderClass(const SkyDomeShaderClass& other)
-{
-}
-
-
 SkyDomeShaderClass::~SkyDomeShaderClass()
 {
+	Shutdown();
 }
 
 
 bool SkyDomeShaderClass::Initialize(ID3D11Device* device, HWND hwnd)
 {
 	// 정점 및 픽셀 쉐이더를 초기화합니다.
-	return InitializeShader(device, hwnd, L"./data/skydome_vs.hlsl", L"./data/skydome_ps.hlsl");
+	ShutdownShader();
+	if (!InitializeShader(device, hwnd, L"./data/skydome_vs.hlsl", L"./data/skydome_ps.hlsl"))
+	{
+		ShutdownShader();
+		return false;
+	}
+
+	return true;
 }
 
 
@@ -49,16 +52,16 @@ bool SkyDomeShaderClass::Render(ID3D11DeviceContext* deviceContext, int indexCou
 
 bool SkyDomeShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, const WCHAR* vsFilename, const WCHAR* psFilename)
 {
-	ID3D10Blob* errorMessage = nullptr;
+	Microsoft::WRL::ComPtr<ID3D10Blob> errorMessage;
 
 	// 버텍스 쉐이더 코드를 컴파일한다.
-	ID3D10Blob* vertexShaderBuffer = nullptr;
-	if (FAILED(D3DCompileFromFile(vsFilename, NULL, NULL, "SkyDomeVertexShader", "vs_5_0", D3D10_SHADER_ENABLE_STRICTNESS, 0, &vertexShaderBuffer, &errorMessage)))
+	Microsoft::WRL::ComPtr<ID3D10Blob> vertexShaderBuffer;
+	if (FAILED(D3DCompileFromFile(vsFilename, NULL, NULL, "SkyDomeVertexShader", "vs_5_0", D3D10_SHADER_ENABLE_STRICTNESS, 0, vertexShaderBuffer.ReleaseAndGetAddressOf(), errorMessage.ReleaseAndGetAddressOf())))
 	{
 		// 셰이더 컴파일 실패시 오류메시지를 출력합니다.
 		if (errorMessage)
 		{
-			OutputShaderErrorMessage(errorMessage, hwnd, vsFilename);
+			OutputShaderErrorMessage(errorMessage.Get(), hwnd, vsFilename);
 		}
 		// 컴파일 오류가 아니라면 셰이더 파일을 찾을 수 없는 경우입니다.
 		else
@@ -70,13 +73,13 @@ bool SkyDomeShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, const
 	}
 
 	// 픽셀 쉐이더 코드를 컴파일한다.
-	ID3D10Blob* pixelShaderBuffer = nullptr;
-	if (FAILED(D3DCompileFromFile(psFilename, NULL, NULL, "SkyDomePixelShader", "ps_5_0", D3D10_SHADER_ENABLE_STRICTNESS, 0, &pixelShaderBuffer, &errorMessage)))
+	Microsoft::WRL::ComPtr<ID3D10Blob> pixelShaderBuffer;
+	if (FAILED(D3DCompileFromFile(psFilename, NULL, NULL, "SkyDomePixelShader", "ps_5_0", D3D10_SHADER_ENABLE_STRICTNESS, 0, pixelShaderBuffer.ReleaseAndGetAddressOf(), errorMessage.ReleaseAndGetAddressOf())))
 	{
 		// 셰이더 컴파일 실패시 오류메시지를 출력합니다.
 		if (errorMessage)
 		{
-			OutputShaderErrorMessage(errorMessage, hwnd, psFilename);
+			OutputShaderErrorMessage(errorMessage.Get(), hwnd, psFilename);
 		}
 		// 컴파일 오류가 아니라면 셰이더 파일을 찾을 수 없는 경우입니다.
 		else
@@ -88,13 +91,13 @@ bool SkyDomeShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, const
 	}
 
 	// 버퍼로부터 정점 셰이더를 생성한다.
-	if (FAILED(device->CreateVertexShader(vertexShaderBuffer->GetBufferPointer(), vertexShaderBuffer->GetBufferSize(), NULL, &m_vertexShader)))
+	if (FAILED(device->CreateVertexShader(vertexShaderBuffer->GetBufferPointer(), vertexShaderBuffer->GetBufferSize(), NULL, m_vertexShader.ReleaseAndGetAddressOf())))
 	{
 		return false;
 	}
 
 	// 버퍼에서 픽셀 쉐이더를 생성합니다.
-	if (FAILED(device->CreatePixelShader(pixelShaderBuffer->GetBufferPointer(), pixelShaderBuffer->GetBufferSize(), NULL, &m_pixelShader)))
+	if (FAILED(device->CreatePixelShader(pixelShaderBuffer->GetBufferPointer(), pixelShaderBuffer->GetBufferSize(), NULL, m_pixelShader.ReleaseAndGetAddressOf())))
 	{
 		return false;
 	}
@@ -115,17 +118,10 @@ bool SkyDomeShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, const
 
 	// 정점 입력 레이아웃을 만듭니다.
 	if (FAILED(device->CreateInputLayout(polygonLayout, numElements,
-		vertexShaderBuffer->GetBufferPointer(), vertexShaderBuffer->GetBufferSize(), &m_layout)))
+		vertexShaderBuffer->GetBufferPointer(), vertexShaderBuffer->GetBufferSize(), m_layout.ReleaseAndGetAddressOf())))
 	{
 		return false;
 	}
-
-	// 더 이상 사용되지 않는 정점 셰이더 퍼버와 픽셀 셰이더 버퍼를 해제합니다.
-	vertexShaderBuffer->Release();
-	vertexShaderBuffer = 0;
-
-	pixelShaderBuffer->Release();
-	pixelShaderBuffer = 0;
 
 	// 버텍스 쉐이더에있는 동적 행렬 상수 버퍼의 구조체를 설정합니다.
 	D3D11_BUFFER_DESC matrixBufferDesc;
@@ -137,7 +133,7 @@ bool SkyDomeShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, const
 	matrixBufferDesc.StructureByteStride = 0;
 
 	// 이 클래스 내에서 정점 셰이더 상수 버퍼에 액세스 할 수 있도록 상수 버퍼 포인터를 만듭니다.
-	if (FAILED(device->CreateBuffer(&matrixBufferDesc, NULL, &m_matrixBuffer)))
+	if (FAILED(device->CreateBuffer(&matrixBufferDesc, NULL, m_matrixBuffer.ReleaseAndGetAddressOf())))
 	{
 		return false;
 	}
@@ -153,7 +149,7 @@ bool SkyDomeShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, const
 	gradientBufferDesc.StructureByteStride = 0;
 
 	// 이 클래스 내에서 정점 셰이더 상수 버퍼에 액세스 할 수 있도록 상수 버퍼 포인터를 만듭니다.
-	if (FAILED(device->CreateBuffer(&gradientBufferDesc, NULL, &m_gradientBuffer)))
+	if (FAILED(device->CreateBuffer(&gradientBufferDesc, NULL, m_gradientBuffer.ReleaseAndGetAddressOf())))
 	{
 		return false;
 	}
@@ -165,39 +161,19 @@ bool SkyDomeShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, const
 void SkyDomeShaderClass::ShutdownShader()
 {
 	// 그라데이션 동적 상수 버퍼를 해제합니다.
-	if(m_gradientBuffer)
-	{
-		m_gradientBuffer->Release();
-		m_gradientBuffer = 0;
-	}
+	m_gradientBuffer.Reset();
 
 	// 행렬 상수 버퍼를 해제합니다.
-	if (m_matrixBuffer)
-	{
-		m_matrixBuffer->Release();
-		m_matrixBuffer = 0;
-	}
+	m_matrixBuffer.Reset();
 
 	// 레이아웃을 해제합니다.
-	if(m_layout)
-	{
-		m_layout->Release();
-		m_layout = 0;
-	}
+	m_layout.Reset();
 
 	// 픽셀 쉐이더를 해제합니다.
-	if (m_pixelShader)
-	{
-		m_pixelShader->Release();
-		m_pixelShader = 0;
-	}
+	m_pixelShader.Reset();
 
 	// 버텍스 쉐이더를 해제합니다.
-	if (m_vertexShader)
-	{
-		m_vertexShader->Release();
-		m_vertexShader = 0;
-	}
+	m_vertexShader.Reset();
 }
 
 
@@ -205,10 +181,6 @@ void SkyDomeShaderClass::OutputShaderErrorMessage(ID3D10Blob* errorMessage, HWND
 {
 	// 에러 메시지를 출력창에 표시합니다.
 	OutputDebugStringA(reinterpret_cast<const char*>(errorMessage->GetBufferPointer()));
-
-	// 에러 메세지를 반환합니다.
-	errorMessage->Release();
-	errorMessage = 0;
 
 	// 컴파일 에러가 있음을 팝업 메세지로 알려줍니다.
 	MessageBox(hwnd, L"Error compiling shader.", shaderFilename, MB_OK);
@@ -225,7 +197,7 @@ bool SkyDomeShaderClass::SetShaderParameters(ID3D11DeviceContext* deviceContext,
 
 	// 상수 버퍼의 내용을 쓸 수 있도록 잠급니다.
 	D3D11_MAPPED_SUBRESOURCE mappedResource;
-	if (FAILED(deviceContext->Map(m_matrixBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource)))
+	if (FAILED(deviceContext->Map(m_matrixBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource)))
 	{
 		return false;
 	}
@@ -239,16 +211,16 @@ bool SkyDomeShaderClass::SetShaderParameters(ID3D11DeviceContext* deviceContext,
 	dataPtr->projection = projectionMatrix;
 
 	// 상수 버퍼의 잠금을 풉니다.
-	deviceContext->Unmap(m_matrixBuffer, 0);
+	deviceContext->Unmap(m_matrixBuffer.Get(), 0);
 
 	// 정점 셰이더에서의 상수 버퍼의 위치를 설정합니다.
 	unsigned bufferNumber = 0;
 
 	// 마지막으로 정점 셰이더의 상수 버퍼를 바뀐 값으로 바꿉니다.
-	deviceContext->VSSetConstantBuffers(bufferNumber, 1, &m_matrixBuffer);
+	deviceContext->VSSetConstantBuffers(bufferNumber, 1, m_matrixBuffer.GetAddressOf());
 
 	// 조명 상수 버퍼를 잠글 수 있도록 기록한다.
-	if (FAILED(deviceContext->Map(m_gradientBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource)))
+	if (FAILED(deviceContext->Map(m_gradientBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource)))
 	{
 		return false;
 	}
@@ -261,13 +233,13 @@ bool SkyDomeShaderClass::SetShaderParameters(ID3D11DeviceContext* deviceContext,
 	dataPtr2->centerColor = centerColor;
 
 	// 상수 버퍼의 잠금을 해제합니다.
-	deviceContext->Unmap(m_gradientBuffer, 0);
+	deviceContext->Unmap(m_gradientBuffer.Get(), 0);
 
 	// 픽셀 쉐이더에서 광원 상수 버퍼의 위치를 ​​설정합니다.
 	bufferNumber = 0;
 
 	// 마지막으로 픽셀 쉐이더에 텍스처 정보 상수 버퍼를 업데이트 된 값으로 설정합니다.
-	deviceContext->PSSetConstantBuffers(bufferNumber, 1, &m_gradientBuffer);
+	deviceContext->PSSetConstantBuffers(bufferNumber, 1, m_gradientBuffer.GetAddressOf());
 
 	return true;
 }
@@ -276,11 +248,11 @@ bool SkyDomeShaderClass::SetShaderParameters(ID3D11DeviceContext* deviceContext,
 void SkyDomeShaderClass::RenderShader(ID3D11DeviceContext* deviceContext, int indexCount)
 {
 	// 정점 입력 레이아웃을 설정합니다.
-	deviceContext->IASetInputLayout(m_layout);
+	deviceContext->IASetInputLayout(m_layout.Get());
 
 	// 삼각형을 그릴 정점 셰이더와 픽셀 셰이더를 설정합니다.
-	deviceContext->VSSetShader(m_vertexShader, NULL, 0);
-	deviceContext->PSSetShader(m_pixelShader, NULL, 0);
+	deviceContext->VSSetShader(m_vertexShader.Get(), NULL, 0);
+	deviceContext->PSSetShader(m_pixelShader.Get(), NULL, 0);
 
 	// 삼각형을 그립니다.
 	deviceContext->DrawIndexed(indexCount, 0, 0);

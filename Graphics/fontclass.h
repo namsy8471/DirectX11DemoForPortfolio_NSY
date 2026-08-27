@@ -1,4 +1,4 @@
-////////////////////////////////////////////////////////////////////////////////
+﻿////////////////////////////////////////////////////////////////////////////////
 // Filename: fontclass.h
 ////////////////////////////////////////////////////////////////////////////////
 #ifndef _FONTCLASS_H_
@@ -11,6 +11,8 @@
 #include <d3d11.h>
 #include <directxmath.h>
 #include <fstream>
+#include <memory>
+#include <vector>
 
 using namespace DirectX;
 using namespace std;
@@ -42,7 +44,8 @@ private:
 
 public:
 	FontClass();
-	FontClass(const FontClass&);
+	FontClass(const FontClass&) = delete;
+	FontClass& operator=(const FontClass&) = delete;
 	~FontClass();
 
 	bool Initialize(ID3D11Device*, const WCHAR*, const WCHAR*);
@@ -59,8 +62,8 @@ private:
 	void ReleaseTexture();
 
 private:
-	FontType* m_Font;
-	TextureClass* m_Texture;
+	std::vector<FontType> m_Font;
+	std::unique_ptr<TextureClass> m_Texture;
 };
 
 #endif

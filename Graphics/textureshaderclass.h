@@ -1,4 +1,4 @@
-////////////////////////////////////////////////////////////////////////////////
+﻿////////////////////////////////////////////////////////////////////////////////
 // Filename: textureshaderclass.h
 // The TextureShaderClass is just an updated version of the ColorShaderClass from 
 // the previous tutorial. This class will be used to draw the 3D models using vertex 
@@ -14,6 +14,7 @@
 #include <d3d11.h>
 #include <directxmath.h>
 #include <d3dcompiler.h>
+#include <wrl/client.h>
 
 #include <fstream>
 
@@ -36,7 +37,8 @@ private:
 
 public:
 	TextureShaderClass();
-	TextureShaderClass(const TextureShaderClass&);
+	TextureShaderClass(const TextureShaderClass&) = delete;
+	TextureShaderClass& operator=(const TextureShaderClass&) = delete;
 	~TextureShaderClass();
 
 	bool Initialize(ID3D11Device*, HWND);
@@ -52,11 +54,11 @@ private:
 	void RenderShader(ID3D11DeviceContext*, int);
 
 private:
-	ID3D11VertexShader* m_vertexShader;
-	ID3D11PixelShader* m_pixelShader;
-	ID3D11InputLayout* m_layout;
-	ID3D11Buffer* m_matrixBuffer;
-	ID3D11SamplerState* m_sampleState;
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> m_vertexShader;
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> m_pixelShader;
+	Microsoft::WRL::ComPtr<ID3D11InputLayout> m_layout;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_matrixBuffer;
+	Microsoft::WRL::ComPtr<ID3D11SamplerState> m_sampleState;
 };
 
 #endif

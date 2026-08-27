@@ -1,4 +1,4 @@
-////////////////////////////////////////////////////////////////////////////////
+﻿////////////////////////////////////////////////////////////////////////////////
 // Filename: textclass.h
 ////////////////////////////////////////////////////////////////////////////////
 #ifndef _TEXTCLASS_H_
@@ -11,6 +11,9 @@
 #include "fontshaderclass.h"
 #include "AlignedAllocationPolicy.h"
 
+#include <memory>
+#include <wrl/client.h>
+
 ////////////////////////////////////////////////////////////////////////////////
 // Class name: TextClass
 ////////////////////////////////////////////////////////////////////////////////
@@ -19,9 +22,14 @@ class TextClass : public AlignedAllocationPolicy<16>
 private:
 	struct SentenceType
 	{
-		ID3D11Buffer *vertexBuffer, *indexBuffer;
-		int vertexCount, indexCount, maxLength;
-		float red, green, blue;
+		Microsoft::WRL::ComPtr<ID3D11Buffer> vertexBuffer;
+		Microsoft::WRL::ComPtr<ID3D11Buffer> indexBuffer;
+		int vertexCount = 0;
+		int indexCount = 0;
+		int maxLength = 0;
+		float red = 0.0f;
+		float green = 0.0f;
+		float blue = 0.0f;
 	};
 
 	struct VertexType
@@ -38,7 +46,8 @@ public:
 	};
 
 	TextClass();
-	TextClass(const TextClass&);
+	TextClass(const TextClass&) = delete;
+	TextClass& operator=(const TextClass&) = delete;
 	~TextClass();
 
 	bool Initialize(ID3D11Device*, ID3D11DeviceContext*, HWND, int, int, XMMATRIX);
@@ -55,28 +64,29 @@ public:
 	bool SetGoalDescription(ID3D11DeviceContext*);
 
 private:
-	bool InitializeSentence(SentenceType**, int, ID3D11Device*);
+	bool InitializeSentence(std::unique_ptr<SentenceType>&, int, ID3D11Device*);
 	bool UpdateSentence(SentenceType*, const char*, int, int, float, float, float, ID3D11DeviceContext*);
-	void ReleaseSentence(SentenceType**);
+	void ReleaseSentence(std::unique_ptr<SentenceType>&);
 	bool RenderSentence(ID3D11DeviceContext*, SentenceType*, XMMATRIX, XMMATRIX);
 
 private:
 
 	RenderType renderType = RenderType::Title;
 
-	FontClass* m_Font;
-	FontShaderClass* m_FontShader;
-	int m_screenWidth, m_screenHeight;
-	XMMATRIX m_baseViewMatrix;
+	std::unique_ptr<FontClass> m_Font;
+	std::unique_ptr<FontShaderClass> m_FontShader;
+	int m_screenWidth = 0;
+	int m_screenHeight = 0;
+	XMMATRIX m_baseViewMatrix = XMMatrixIdentity();
 
-	SentenceType* m_sentence_fps;
-	SentenceType* m_sentence_cpu;
+	std::unique_ptr<SentenceType> m_sentence_fps;
+	std::unique_ptr<SentenceType> m_sentence_cpu;
 
-	SentenceType* m_sentence_polygons;
-	SentenceType* m_sentence_objects;
+	std::unique_ptr<SentenceType> m_sentence_polygons;
+	std::unique_ptr<SentenceType> m_sentence_objects;
 	
-	SentenceType* m_sentence_screen_size;
-	SentenceType* m_sentence_goal_description;
+	std::unique_ptr<SentenceType> m_sentence_screen_size;
+	std::unique_ptr<SentenceType> m_sentence_goal_description;
 };
 
 #endif

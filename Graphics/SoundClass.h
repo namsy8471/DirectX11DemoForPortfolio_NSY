@@ -1,6 +1,13 @@
 #pragma once
 
-#include "stdafx.h"
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
+#include <Windows.h>
+#include <mmsystem.h>
+#include <dsound.h>
+#include <wrl/client.h>
 
 class SoundClass
 {
@@ -23,31 +30,33 @@ private:
 	};
 
 public:
-	SoundClass();
-	SoundClass(const SoundClass&);
+	SoundClass() = default;
+	SoundClass(const SoundClass&) = delete;
+	SoundClass& operator=(const SoundClass&) = delete;
+	SoundClass(SoundClass&&) = delete;
+	SoundClass& operator=(SoundClass&&) = delete;
 	~SoundClass();
 
-	bool Initialize(HWND);
-	void Shutdown();
+	bool Initialize(HWND hwnd);
+	bool Initialize(
+		HWND hwnd,
+		const char* startupSoundPath,
+		const char* backgroundMusicPath,
+		const char* actionSoundPath);
+	void Shutdown() noexcept;
 
 	void PlaySoundForBGM();
 	void PlaySoundForSFX();
 
-
 private:
-	bool InitializeDirectSound(HWND);
-	void ShutdownDirectSound();
-
-	bool LoadWaveFile(const char*, IDirectSoundBuffer8**);
-	void ShutdownWaveFile(IDirectSoundBuffer8**);
-
+	bool InitializeDirectSound(HWND hwnd);
+	bool LoadWaveFile(const char* filename, Microsoft::WRL::ComPtr<IDirectSoundBuffer8>& secondaryBuffer);
 	bool PlayWaveFile();
 
 private:
-	IDirectSound8* m_DirectSound;
-	IDirectSoundBuffer* m_primaryBuffer;
-	IDirectSoundBuffer8* m_secondaryBuffer1;
-	IDirectSoundBuffer8* m_secondaryBuffer2;
-	IDirectSoundBuffer8* m_secondaryBuffer3;
+	Microsoft::WRL::ComPtr<IDirectSound8> m_directSound;
+	Microsoft::WRL::ComPtr<IDirectSoundBuffer> m_primaryBuffer;
+	Microsoft::WRL::ComPtr<IDirectSoundBuffer8> m_secondaryBuffer1;
+	Microsoft::WRL::ComPtr<IDirectSoundBuffer8> m_secondaryBuffer2;
+	Microsoft::WRL::ComPtr<IDirectSoundBuffer8> m_secondaryBuffer3;
 };
-

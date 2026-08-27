@@ -1,229 +1,210 @@
-////////////////////////////////////////////////////////////////////////////////
-// Filename: CollisionHelpers.h
-// Collision detection utilities including AABB and Ray intersection
-////////////////////////////////////////////////////////////////////////////////
-#ifndef _COLLISIONHELPERS_H_
-#define _COLLISIONHELPERS_H_
+#pragma once
 
-#include <directxmath.h>
+#include <DirectXMath.h>
+
 #include <algorithm>
+#include <array>
 #include <cfloat>
-
-using namespace DirectX;
+#include <cmath>
 
 namespace CollisionHelpers
 {
-	// AABB 구조체
 	struct AABB
 	{
-		XMFLOAT3 min;
-		XMFLOAT3 max;
+		DirectX::XMFLOAT3 min{FLT_MAX, FLT_MAX, FLT_MAX};
+		DirectX::XMFLOAT3 max{-FLT_MAX, -FLT_MAX, -FLT_MAX};
 
-		AABB()
+		AABB() noexcept = default;
+		AABB(const DirectX::XMFLOAT3& minimum, const DirectX::XMFLOAT3& maximum) noexcept
+			: min(minimum), max(maximum)
 		{
-			min = XMFLOAT3(FLT_MAX, FLT_MAX, FLT_MAX);
-			max = XMFLOAT3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 		}
 
-		AABB(const XMFLOAT3& minPoint, const XMFLOAT3& maxPoint) 
+		[[nodiscard]] bool IsValid() const noexcept
 		{
-			min = minPoint;
-			max = maxPoint;
+			return min.x <= max.x && min.y <= max.y && min.z <= max.z;
 		}
 
-		// AABB를 월드 변환 행렬로 변환
-		AABB Transform(const XMMATRIX& worldMatrix) const
+		[[nodiscard]] AABB Transform(const DirectX::XMMATRIX& worldMatrix) const noexcept
 		{
-			AABB transformed;
-
-			// AABB의 8개 코너 계산
-			XMFLOAT3 corners[8] = {
-				XMFLOAT3(min.x, min.y, min.z),
-				XMFLOAT3(max.x, min.y, min.z),
-				XMFLOAT3(min.x, max.y, min.z),
-				XMFLOAT3(max.x, max.y, min.z),
-				XMFLOAT3(min.x, min.y, max.z),
-				XMFLOAT3(max.x, min.y, max.z),
-				XMFLOAT3(min.x, max.y, max.z),
-				XMFLOAT3(max.x, max.y, max.z)
-			};
-
-			// 각 코너를 변환하고 새로운 AABB 계산
-			for (int i = 0; i < 8; i++)
+			if (!IsValid())
 			{
-				XMVECTOR corner = XMLoadFloat3(&corners[i]);
-				corner = XMVector3TransformCoord(corner, worldMatrix);
-				XMFLOAT3 transformedCorner;
-				XMStoreFloat3(&transformedCorner, corner);
-
-				transformed.min.x = (::std::min)(transformed.min.x, transformedCorner.x);
-				transformed.min.y = (::std::min)(transformed.min.y, transformedCorner.y);
-				transformed.min.z = (::std::min)(transformed.min.z, transformedCorner.z);
-
-				transformed.max.x = (::std::max)(transformed.max.x, transformedCorner.x);
-				transformed.max.y = (::std::max)(transformed.max.y, transformedCorner.y);
-				transformed.max.z = (::std::max)(transformed.max.z, transformedCorner.z);
+				return {};
 			}
 
+			const std::array<DirectX::XMFLOAT3, 8> corners{
+				DirectX::XMFLOAT3{min.x, min.y, min.z},
+				DirectX::XMFLOAT3{max.x, min.y, min.z},
+				DirectX::XMFLOAT3{min.x, max.y, min.z},
+				DirectX::XMFLOAT3{max.x, max.y, min.z},
+				DirectX::XMFLOAT3{min.x, min.y, max.z},
+				DirectX::XMFLOAT3{max.x, min.y, max.z},
+				DirectX::XMFLOAT3{min.x, max.y, max.z},
+				DirectX::XMFLOAT3{max.x, max.y, max.z}};
+
+			AABB transformed;
+			for (const auto& corner : corners)
+			{
+				DirectX::XMFLOAT3 value;
+				DirectX::XMStoreFloat3(
+					&value,
+					DirectX::XMVector3TransformCoord(
+						DirectX::XMLoadFloat3(&corner),
+						worldMatrix));
+				transformed.min.x = (std::min)(transformed.min.x, value.x);
+				transformed.min.y = (std::min)(transformed.min.y, value.y);
+				transformed.min.z = (std::min)(transformed.min.z, value.z);
+				transformed.max.x = (std::max)(transformed.max.x, value.x);
+				transformed.max.y = (std::max)(transformed.max.y, value.y);
+				transformed.max.z = (std::max)(transformed.max.z, value.z);
+			}
 			return transformed;
 		}
 
-		// AABB 중심점 계산
-		XMFLOAT3 GetCenter() const
+		[[nodiscard]] DirectX::XMFLOAT3 GetCenter() const noexcept
 		{
-			return XMFLOAT3(
-				(min.x + max.x) * 0.5f,
-				(min.y + max.y) * 0.5f,
-				(min.z + max.z) * 0.5f
-			);
+			return IsValid()
+				? DirectX::XMFLOAT3{
+					(min.x + max.x) * 0.5f,
+					(min.y + max.y) * 0.5f,
+					(min.z + max.z) * 0.5f}
+				: DirectX::XMFLOAT3{};
 		}
 
-		// AABB 크기 계산
-		XMFLOAT3 GetExtents() const
+		[[nodiscard]] DirectX::XMFLOAT3 GetExtents() const noexcept
 		{
-			return XMFLOAT3(
-				(max.x - min.x) * 0.5f,
-				(max.y - min.y) * 0.5f,
-				(max.z - min.z) * 0.5f
-			);
+			return IsValid()
+				? DirectX::XMFLOAT3{
+					(max.x - min.x) * 0.5f,
+					(max.y - min.y) * 0.5f,
+					(max.z - min.z) * 0.5f}
+				: DirectX::XMFLOAT3{};
 		}
 	};
 
-	// 버텍스 배열로부터 AABB 계산
 	template<typename VertexType>
-	inline AABB CalculateAABB(const VertexType* vertices, unsigned int vertexCount)
+	[[nodiscard]] inline AABB CalculateAABB(
+		const VertexType* vertices,
+		unsigned int vertexCount) noexcept
 	{
-		AABB aabb;
-
-		for (unsigned int i = 0; i < vertexCount; i++)
+		AABB bounds;
+		if (vertices == nullptr)
 		{
-			aabb.min.x = (::std::min)(aabb.min.x, vertices[i].position.x);
-			aabb.min.y = (::std::min)(aabb.min.y, vertices[i].position.y);
-			aabb.min.z = (::std::min)(aabb.min.z, vertices[i].position.z);
-
-			aabb.max.x = (::std::max)(aabb.max.x, vertices[i].position.x);
-			aabb.max.y = (::std::max)(aabb.max.y, vertices[i].position.y);
-			aabb.max.z = (::std::max)(aabb.max.z, vertices[i].position.z);
+			return bounds;
 		}
 
-		return aabb;
+		for (unsigned int index = 0; index < vertexCount; ++index)
+		{
+			bounds.min.x = (std::min)(bounds.min.x, vertices[index].position.x);
+			bounds.min.y = (std::min)(bounds.min.y, vertices[index].position.y);
+			bounds.min.z = (std::min)(bounds.min.z, vertices[index].position.z);
+			bounds.max.x = (std::max)(bounds.max.x, vertices[index].position.x);
+			bounds.max.y = (std::max)(bounds.max.y, vertices[index].position.y);
+			bounds.max.z = (std::max)(bounds.max.z, vertices[index].position.z);
+		}
+		return bounds;
 	}
 
-	// Ray-AABB 교차 테스트 (Slab method)
-	inline bool RayAABBIntersect(
-		const XMFLOAT3& rayOrigin,
-		const XMFLOAT3& rayDirection,
-		const AABB& aabb,
-		float* outDistance = nullptr)
+	[[nodiscard]] inline bool RayAABBIntersect(
+		const DirectX::XMFLOAT3& rayOrigin,
+		const DirectX::XMFLOAT3& rayDirection,
+		const AABB& bounds,
+		float* outDistance = nullptr) noexcept
 	{
-		float tMin = 0.0f;
-		float tMax = FLT_MAX;
-
-		// X축 slab 테스트
-		if (abs(rayDirection.x) < 1e-8f)
+		if (!bounds.IsValid())
 		{
-			// Ray가 X축과 평행
-			if (rayOrigin.x < aabb.min.x || rayOrigin.x > aabb.max.x)
-				return false;
-		}
-		else
-		{
-			float invD = 1.0f / rayDirection.x;
-			float t1 = (aabb.min.x - rayOrigin.x) * invD;
-			float t2 = (aabb.max.x - rayOrigin.x) * invD;
-
-			if (t1 > t2) ::std::swap(t1, t2);
-
-			tMin = (::std::max)(tMin, t1);
-			tMax = (::std::min)(tMax, t2);
-
-			if (tMin > tMax) return false;
+			return false;
 		}
 
-		// Y축 slab 테스트
-		if (abs(rayDirection.y) < 1e-8f)
+		float minimumDistance = 0.0f;
+		float maximumDistance = FLT_MAX;
+		const auto testAxis = [&minimumDistance, &maximumDistance](
+			float origin,
+			float direction,
+			float minimum,
+			float maximum) noexcept
 		{
-			if (rayOrigin.y < aabb.min.y || rayOrigin.y > aabb.max.y)
-				return false;
-		}
-		else
+			constexpr float epsilon = 1.0e-8f;
+			if (std::abs(direction) < epsilon)
+			{
+				return origin >= minimum && origin <= maximum;
+			}
+
+			const float inverseDirection = 1.0f / direction;
+			float nearDistance = (minimum - origin) * inverseDirection;
+			float farDistance = (maximum - origin) * inverseDirection;
+			if (nearDistance > farDistance)
+			{
+				std::swap(nearDistance, farDistance);
+			}
+			minimumDistance = (std::max)(minimumDistance, nearDistance);
+			maximumDistance = (std::min)(maximumDistance, farDistance);
+			return minimumDistance <= maximumDistance;
+		};
+
+		if (!testAxis(rayOrigin.x, rayDirection.x, bounds.min.x, bounds.max.x) ||
+			!testAxis(rayOrigin.y, rayDirection.y, bounds.min.y, bounds.max.y) ||
+			!testAxis(rayOrigin.z, rayDirection.z, bounds.min.z, bounds.max.z) ||
+			maximumDistance < 0.0f)
 		{
-			float invD = 1.0f / rayDirection.y;
-			float t1 = (aabb.min.y - rayOrigin.y) * invD;
-			float t2 = (aabb.max.y - rayOrigin.y) * invD;
-
-			if (t1 > t2) ::std::swap(t1, t2);
-
-			tMin = (::std::max)(tMin, t1);
-			tMax = (::std::min)(tMax, t2);
-
-			if (tMin > tMax) return false;
-		}
-
-		// Z축 slab 테스트
-		if (abs(rayDirection.z) < 1e-8f)
-		{
-			if (rayOrigin.z < aabb.min.z || rayOrigin.z > aabb.max.z)
-				return false;
-		}
-		else
-		{
-			float invD = 1.0f / rayDirection.z;
-			float t1 = (aabb.min.z - rayOrigin.z) * invD;
-			float t2 = (aabb.max.z - rayOrigin.z) * invD;
-
-			if (t1 > t2) ::std::swap(t1, t2);
-
-			tMin = (::std::max)(tMin, t1);
-			tMax = (::std::min)(tMax, t2);
-
-			if (tMin > tMax) return false;
+			return false;
 		}
 
-		// 교차 거리 반환
-		if (outDistance)
+		if (outDistance != nullptr)
 		{
-			*outDistance = (tMin > 0.0f) ? tMin : tMax;
+			*outDistance = minimumDistance >= 0.0f
+				? minimumDistance
+				: maximumDistance;
 		}
-
-		return tMax >= 0.0f; // Ray가 AABB와 교차
+		return true;
 	}
 
-	// Ray-Sphere 교차 테스트 (개선된 버전)
-	inline bool RaySphereIntersect(
-		const XMFLOAT3& rayOrigin,
-		const XMFLOAT3& rayDirection,
-		const XMFLOAT3& sphereCenter,
+	[[nodiscard]] inline bool RaySphereIntersect(
+		const DirectX::XMFLOAT3& rayOrigin,
+		const DirectX::XMFLOAT3& rayDirection,
+		const DirectX::XMFLOAT3& sphereCenter,
 		float sphereRadius,
-		float* outDistance = nullptr)
+		float* outDistance = nullptr) noexcept
 	{
-		XMVECTOR origin = XMLoadFloat3(&rayOrigin);
-		XMVECTOR direction = XMLoadFloat3(&rayDirection);
-		XMVECTOR center = XMLoadFloat3(&sphereCenter);
+		if (sphereRadius < 0.0f)
+		{
+			return false;
+		}
 
-		XMVECTOR oc = origin - center;
+		const float offsetX = rayOrigin.x - sphereCenter.x;
+		const float offsetY = rayOrigin.y - sphereCenter.y;
+		const float offsetZ = rayOrigin.z - sphereCenter.z;
+		const float a = rayDirection.x * rayDirection.x +
+			rayDirection.y * rayDirection.y +
+			rayDirection.z * rayDirection.z;
+		if (a <= 1.0e-12f)
+		{
+			return false;
+		}
 
-		float a = XMVectorGetX(XMVector3Dot(direction, direction));
-		float b = 2.0f * XMVectorGetX(XMVector3Dot(oc, direction));
-		float c = XMVectorGetX(XMVector3Dot(oc, oc)) - sphereRadius * sphereRadius;
-
-		float discriminant = b * b - 4.0f * a * c;
-
+		const float b = 2.0f * (
+			offsetX * rayDirection.x +
+			offsetY * rayDirection.y +
+			offsetZ * rayDirection.z);
+		const float c = offsetX * offsetX + offsetY * offsetY +
+			offsetZ * offsetZ - sphereRadius * sphereRadius;
+		const float discriminant = b * b - 4.0f * a * c;
 		if (discriminant < 0.0f)
 		{
 			return false;
 		}
 
-		if (outDistance)
+		const float root = std::sqrt(discriminant);
+		const float nearDistance = (-b - root) / (2.0f * a);
+		const float farDistance = (-b + root) / (2.0f * a);
+		if (farDistance < 0.0f)
 		{
-			float t = (-b - sqrtf(discriminant)) / (2.0f * a);
-			if (t < 0.0f)
-				t = (-b + sqrtf(discriminant)) / (2.0f * a);
-			*outDistance = t;
+			return false;
 		}
-
+		if (outDistance != nullptr)
+		{
+			*outDistance = nearDistance >= 0.0f ? nearDistance : farDistance;
+		}
 		return true;
 	}
 }
-
-#endif

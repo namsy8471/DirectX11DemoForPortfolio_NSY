@@ -1,10 +1,10 @@
-////////////////////////////////////////////////////////////////////////////////
+﻿////////////////////////////////////////////////////////////////////////////////
 // Filename: d3dclass.cpp
 ////////////////////////////////////////////////////////////////////////////////
 #include "d3dclass.h"
-#include "IMGUIManager.h"
 #include "D3DHelpers.h"
 #include <cstdlib>
+#include <vector>
 
 D3DClass::D3DClass()
 {
@@ -12,55 +12,36 @@ D3DClass::D3DClass()
 	m_videoCardMemory = 0;
 	// 안전한 초기화: 배열 전체를 0으로 초기화
 	memset(m_videoCardDescription, 0, sizeof(m_videoCardDescription));
-	
-	m_swapChain = nullptr;
-	m_device = nullptr;
-	m_deviceContext = nullptr;
-	m_renderTargetView = nullptr;
-	m_depthStencilBuffer = nullptr;
-	m_depthStencilState = nullptr;
-	m_depthStencilView = nullptr;
-	m_rasterState = nullptr;
-
-	m_depthDisabledStencilState = nullptr;
-
-	m_alphaEnableBlendingState = nullptr;
-	m_alphaDisableBlendingState = nullptr;
-}
-
-
-D3DClass::D3DClass(const D3DClass& other)
-{
 }
 
 
 D3DClass::~D3DClass()
 {
+	Shutdown();
 }
 
 
 bool D3DClass::Initialize(int screenWidth, int screenHeight, bool vsync, HWND hwnd, bool fullscreen, 
 						  float screenDepth, float screenNear)
 {
+	Shutdown();
+
 	HRESULT result;
-	IDXGIFactory* factory;
-	IDXGIAdapter* adapter;
-	IDXGIOutput* adapterOutput;
+	Microsoft::WRL::ComPtr<IDXGIFactory> factory;
+	Microsoft::WRL::ComPtr<IDXGIAdapter> adapter;
+	Microsoft::WRL::ComPtr<IDXGIOutput> adapterOutput;
 	unsigned int numModes = 0, i = 0, numerator = 0, denominator = 1;
 	size_t stringLength = 0;
-	DXGI_MODE_DESC* displayModeList;
+	std::vector<DXGI_MODE_DESC> displayModeList;
 	DXGI_ADAPTER_DESC adapterDesc;
 	int error = 0;
 	DXGI_SWAP_CHAIN_DESC swapChainDesc;
 	D3D_FEATURE_LEVEL featureLevel;
-	ID3D11Texture2D* backBufferPtr;
+	Microsoft::WRL::ComPtr<ID3D11Texture2D> backBuffer;
 	D3D11_TEXTURE2D_DESC depthBufferDesc;
 	D3D11_DEPTH_STENCIL_DESC depthStencilDesc;
 	D3D11_DEPTH_STENCIL_VIEW_DESC depthStencilViewDesc;
-	D3D11_RASTERIZER_DESC rasterDesc;
 	float fieldOfView, screenAspect;
-
-	D3D11_DEPTH_STENCIL_DESC depthDisabledStencilDesc;
 
 	D3D11_BLEND_DESC blendStateDescription;
 
@@ -68,26 +49,25 @@ bool D3DClass::Initialize(int screenWidth, int screenHeight, bool vsync, HWND hw
 	m_vsync_enabled = vsync;
 
 	// Create a DirectX graphics interface factory.
-	result = CreateDXGIFactory(__uuidof(IDXGIFactory), reinterpret_cast<void**>(&factory));
+	result = CreateDXGIFactory(
+		__uuidof(IDXGIFactory),
+		reinterpret_cast<void**>(factory.ReleaseAndGetAddressOf()));
 	if(FAILED(result))
 	{
 		return false;
 	}
 
 	// Use the factory to create an adapter for the primary graphics interface (video card).
-	result = factory->EnumAdapters(0, &adapter);
+	result = factory->EnumAdapters(0, adapter.ReleaseAndGetAddressOf());
 	if(FAILED(result))
 	{
-		factory->Release();
 		return false;
 	}
 
 	// Enumerate the primary adapter output (monitor).
-	result = adapter->EnumOutputs(0, &adapterOutput);
+	result = adapter->EnumOutputs(0, adapterOutput.ReleaseAndGetAddressOf());
 	if(FAILED(result))
 	{
-		adapter->Release();
-		factory->Release();
 		return false;
 	}
 
@@ -95,30 +75,20 @@ bool D3DClass::Initialize(int screenWidth, int screenHeight, bool vsync, HWND hw
 	result = adapterOutput->GetDisplayModeList(DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_ENUM_MODES_INTERLACED, &numModes, nullptr);
 	if(FAILED(result) || numModes == 0)
 	{
-		adapterOutput->Release();
-		adapter->Release();
-		factory->Release();
 		return false;
 	}
 
 	// Create a list to hold all the possible display modes for this monitor/video card combination.
-	displayModeList = new DXGI_MODE_DESC[numModes];
-	if(!displayModeList)
-	{
-		adapterOutput->Release();
-		adapter->Release();
-		factory->Release();
-		return false;
-	}
+	displayModeList.resize(numModes);
 
 	// Now fill the display mode list structures.
-	result = adapterOutput->GetDisplayModeList(DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_ENUM_MODES_INTERLACED, &numModes, displayModeList);
+	result = adapterOutput->GetDisplayModeList(
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		DXGI_ENUM_MODES_INTERLACED,
+		&numModes,
+		displayModeList.data());
 	if(FAILED(result))
 	{
-		delete [] displayModeList;
-		adapterOutput->Release();
-		adapter->Release();
-		factory->Release();
 		return false;
 	}
 
@@ -139,10 +109,6 @@ bool D3DClass::Initialize(int screenWidth, int screenHeight, bool vsync, HWND hw
 	result = adapter->GetDesc(&adapterDesc);
 	if(FAILED(result))
 	{
-		delete [] displayModeList;
-		adapterOutput->Release();
-		adapter->Release();
-		factory->Release();
 		return false;
 	}
 
@@ -153,28 +119,8 @@ bool D3DClass::Initialize(int screenWidth, int screenHeight, bool vsync, HWND hw
 	error = wcstombs_s(&stringLength, m_videoCardDescription, sizeof(m_videoCardDescription), adapterDesc.Description, sizeof(m_videoCardDescription));
 	if(error != 0)
 	{
-		delete [] displayModeList;
-		adapterOutput->Release();
-		adapter->Release();
-		factory->Release();
 		return false;
 	}
-
-	// Release the display mode list.
-	delete [] displayModeList;
-	displayModeList = nullptr;
-
-	// Release the adapter output.
-	adapterOutput->Release();
-	adapterOutput = nullptr;
-
-	// Release the adapter.
-	adapter->Release();
-	adapter = nullptr;
-
-	// Release the factory.
-	factory->Release();
-	factory = nullptr;
 
 	// Initialize the swap chain description.
     ZeroMemory(&swapChainDesc, sizeof(swapChainDesc));
@@ -229,30 +175,36 @@ bool D3DClass::Initialize(int screenWidth, int screenHeight, bool vsync, HWND hw
 
 	// Create the swap chain, Direct3D device, and Direct3D device context.
 	result = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0, &featureLevel, 1, 
-										   D3D11_SDK_VERSION, &swapChainDesc, &m_swapChain, &m_device, nullptr, &m_deviceContext);
+										   D3D11_SDK_VERSION,
+										   &swapChainDesc,
+										   m_swapChain.ReleaseAndGetAddressOf(),
+										   m_device.ReleaseAndGetAddressOf(),
+										   nullptr,
+										   m_deviceContext.ReleaseAndGetAddressOf());
 	if(FAILED(result))
 	{
 		return false;
 	}
 
 	// Get the pointer to the back buffer.
-	result = m_swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&backBufferPtr));
+	result = m_swapChain->GetBuffer(
+		0,
+		__uuidof(ID3D11Texture2D),
+		reinterpret_cast<void**>(backBuffer.ReleaseAndGetAddressOf()));
 	if(FAILED(result))
 	{
 		return false;
 	}
 
 	// Create the render target view with the back buffer pointer.
-	result = m_device->CreateRenderTargetView(backBufferPtr, nullptr, &m_renderTargetView);
+	result = m_device->CreateRenderTargetView(
+		backBuffer.Get(),
+		nullptr,
+		m_renderTargetView.ReleaseAndGetAddressOf());
 	if(FAILED(result))
 	{
-		backBufferPtr->Release();
 		return false;
 	}
-
-	// Release pointer to the back buffer as we no longer need it.
-	backBufferPtr->Release();
-	backBufferPtr = nullptr;
 
 	// Initialize the description of the depth buffer.
 	ZeroMemory(&depthBufferDesc, sizeof(depthBufferDesc));
@@ -271,7 +223,10 @@ bool D3DClass::Initialize(int screenWidth, int screenHeight, bool vsync, HWND hw
 	depthBufferDesc.MiscFlags = 0;
 
 	// Create the texture for the depth buffer using the filled out description.
-	result = m_device->CreateTexture2D(&depthBufferDesc, nullptr, &m_depthStencilBuffer);
+	result = m_device->CreateTexture2D(
+		&depthBufferDesc,
+		nullptr,
+		m_depthStencilBuffer.ReleaseAndGetAddressOf());
 	if(FAILED(result))
 	{
 		return false;
@@ -302,14 +257,16 @@ bool D3DClass::Initialize(int screenWidth, int screenHeight, bool vsync, HWND hw
 	depthStencilDesc.BackFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
 
 	// Create the depth stencil state.
-	result = m_device->CreateDepthStencilState(&depthStencilDesc, &m_depthStencilState);
+	result = m_device->CreateDepthStencilState(
+		&depthStencilDesc,
+		m_depthStencilState.ReleaseAndGetAddressOf());
 	if(FAILED(result))
 	{
 		return false;
 	}
 
 	// Set the depth stencil state.
-	m_deviceContext->OMSetDepthStencilState(m_depthStencilState, 1);
+	m_deviceContext->OMSetDepthStencilState(m_depthStencilState.Get(), 1);
 
 	// Initialize the depth stencil view.
 	ZeroMemory(&depthStencilViewDesc, sizeof(depthStencilViewDesc));
@@ -320,26 +277,36 @@ bool D3DClass::Initialize(int screenWidth, int screenHeight, bool vsync, HWND hw
 	depthStencilViewDesc.Texture2D.MipSlice = 0;
 
 	// Create the depth stencil view.
-	result = m_device->CreateDepthStencilView(m_depthStencilBuffer, &depthStencilViewDesc, &m_depthStencilView);
+	result = m_device->CreateDepthStencilView(
+		m_depthStencilBuffer.Get(),
+		&depthStencilViewDesc,
+		m_depthStencilView.ReleaseAndGetAddressOf());
 	if(FAILED(result))
 	{
 		return false;
 	}
 
 	// Bind the render target view and depth stencil buffer to the output render pipeline.
-	m_deviceContext->OMSetRenderTargets(1, &m_renderTargetView, m_depthStencilView);
+	ID3D11RenderTargetView* renderTargetView = m_renderTargetView.Get();
+	m_deviceContext->OMSetRenderTargets(1, &renderTargetView, m_depthStencilView.Get());
 
 	// Create rasterizer states using helper
-	if (!D3DHelpers::CreateRasterizerState(m_device, D3D11_CULL_BACK, &m_rasterState))
+	if (!D3DHelpers::CreateRasterizerState(
+		m_device.Get(),
+		D3D11_CULL_BACK,
+		m_rasterState.ReleaseAndGetAddressOf()))
 	{
 		return false;
 	}
 
 	// Now set the rasterizer state.
-	m_deviceContext->RSSetState(m_rasterState);
+	m_deviceContext->RSSetState(m_rasterState.Get());
 	
 	// Create no-culling rasterizer state
-	if (!D3DHelpers::CreateRasterizerState(m_device, D3D11_CULL_NONE, &m_rasterStateNoCulling))
+	if (!D3DHelpers::CreateRasterizerState(
+		m_device.Get(),
+		D3D11_CULL_NONE,
+		m_rasterStateNoCulling.ReleaseAndGetAddressOf()))
 	{
 		return false;
 	}
@@ -368,19 +335,24 @@ bool D3DClass::Initialize(int screenWidth, int screenHeight, bool vsync, HWND hw
 	// Create an orthographic projection matrix for 2D rendering.
 	m_orthoMatrix = XMMatrixOrthographicLH(static_cast<float>(screenWidth), static_cast<float>(screenHeight), screenNear, screenDepth);
 
-	// Create depth stencil states using helper
-	if (!D3DHelpers::CreateDepthStencilState(m_device, &m_depthStencilState, TRUE, D3D11_DEPTH_WRITE_MASK_ALL))
-	{
-		return false;
-	}
-
-	if (!D3DHelpers::CreateDepthStencilState(m_device, &m_depthDisabledStencilState, FALSE, D3D11_DEPTH_WRITE_MASK_ALL))
+	// The enabled depth-stencil state was created and bound above. Only create
+	// the two alternate states here; overwriting m_depthStencilState leaked the
+	// first COM object in the original implementation.
+	if (!D3DHelpers::CreateDepthStencilState(
+		m_device.Get(),
+		m_depthDisabledStencilState.ReleaseAndGetAddressOf(),
+		FALSE,
+		D3D11_DEPTH_WRITE_MASK_ALL))
 	{
 		return false;
 	}
 	
 	// 투명 객체용 깊이 스텐실 상태 생성 (깊이 테스트 ON, 깊이 쓰기 OFF)
-	if (!D3DHelpers::CreateDepthStencilState(m_device, &m_depthTestNoWriteState, TRUE, D3D11_DEPTH_WRITE_MASK_ZERO))
+	if (!D3DHelpers::CreateDepthStencilState(
+		m_device.Get(),
+		m_depthTestNoWriteState.ReleaseAndGetAddressOf(),
+		TRUE,
+		D3D11_DEPTH_WRITE_MASK_ZERO))
 	{
 		return false;
 	}
@@ -399,25 +371,22 @@ bool D3DClass::Initialize(int screenWidth, int screenHeight, bool vsync, HWND hw
 	blendStateDescription.RenderTarget[0].RenderTargetWriteMask = 0x0f;
 
 	// Create the blend state using the description.
-	result = m_device->CreateBlendState(&blendStateDescription, &m_alphaEnableBlendingState);
+	result = m_device->CreateBlendState(
+		&blendStateDescription,
+		m_alphaEnableBlendingState.ReleaseAndGetAddressOf());
 	if (FAILED(result))
 	{
 		return false;
 	}
 
-	if (!D3DHelpers::CreateBlendState(m_device, &m_alphaDisableBlendingState, FALSE))
+	if (!D3DHelpers::CreateBlendState(
+		m_device.Get(),
+		m_alphaDisableBlendingState.ReleaseAndGetAddressOf(),
+		FALSE))
 	{
 		return false;
 	}
 	
-	IMGUIManager* m_IMGUI;
-	m_IMGUI = IMGUIManager::Instance();
-	// IMGUI Initialize
-	if (!m_IMGUI->Initialize(hwnd, m_device, m_deviceContext))
-	{
-		return false;
-	}
-
     return true;
 }
 
@@ -430,22 +399,24 @@ void D3DClass::Shutdown()
 		m_swapChain->SetFullscreenState(FALSE, nullptr);
 	}
 
-	// Use helper function for COM resource cleanup
-	D3DHelpers::SafeRelease(m_rasterState);
-	D3DHelpers::SafeRelease(m_depthStencilView);
-	D3DHelpers::SafeRelease(m_depthStencilState);
-	D3DHelpers::SafeRelease(m_depthStencilBuffer);
-	D3DHelpers::SafeRelease(m_renderTargetView);
-	D3DHelpers::SafeRelease(m_deviceContext);
-	D3DHelpers::SafeRelease(m_device);
-	D3DHelpers::SafeRelease(m_swapChain);
-	D3DHelpers::SafeRelease(m_depthDisabledStencilState);
-	D3DHelpers::SafeRelease(m_depthTestNoWriteState);
-	D3DHelpers::SafeRelease(m_alphaEnableBlendingState);
-	D3DHelpers::SafeRelease(m_alphaDisableBlendingState);
-	D3DHelpers::SafeRelease(m_rasterStateNoCulling);
+	if(m_deviceContext)
+	{
+		m_deviceContext->ClearState();
+	}
 
-	return;
+	m_alphaDisableBlendingState.Reset();
+	m_alphaEnableBlendingState.Reset();
+	m_depthTestNoWriteState.Reset();
+	m_depthDisabledStencilState.Reset();
+	m_rasterStateNoCulling.Reset();
+	m_rasterState.Reset();
+	m_depthStencilView.Reset();
+	m_depthStencilState.Reset();
+	m_depthStencilBuffer.Reset();
+	m_renderTargetView.Reset();
+	m_deviceContext.Reset();
+	m_swapChain.Reset();
+	m_device.Reset();
 }
 
 
@@ -461,42 +432,36 @@ void D3DClass::BeginScene(float red, float green, float blue, float alpha)
 	color[3] = alpha;
 
 	// Clear the back buffer.
-	m_deviceContext->ClearRenderTargetView(m_renderTargetView, color);
+	m_deviceContext->ClearRenderTargetView(m_renderTargetView.Get(), color);
     
 	// Clear the depth buffer.
-	m_deviceContext->ClearDepthStencilView(m_depthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	m_deviceContext->ClearDepthStencilView(m_depthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 
 	return;
 }
 
 
-void D3DClass::EndScene()
+bool D3DClass::EndScene() noexcept
 {
-	// Present the back buffer to the screen since rendering is complete.
-	if(m_vsync_enabled)
+	if (!m_swapChain)
 	{
-		// Lock to screen refresh rate.
-		m_swapChain->Present(1, 0);
-	}
-	else
-	{
-		// Present as fast as possible.
-		m_swapChain->Present(0, 0);
+		return false;
 	}
 
-	return;
+	const UINT syncInterval = m_vsync_enabled ? 1u : 0u;
+	return SUCCEEDED(m_swapChain->Present(syncInterval, 0u));
 }
 
 
 ID3D11Device* D3DClass::GetDevice()
 {
-	return m_device;
+	return m_device.Get();
 }
 
 
 ID3D11DeviceContext* D3DClass::GetDeviceContext()
 {
-	return m_deviceContext;
+	return m_deviceContext.Get();
 }
 
 
@@ -530,14 +495,14 @@ void D3DClass::GetVideoCardInfo(char* cardName, int& memory)
 
 void D3DClass::TurnZBufferOn()
 {
-	m_deviceContext->OMSetDepthStencilState(m_depthStencilState, 1);
+	m_deviceContext->OMSetDepthStencilState(m_depthStencilState.Get(), 1);
 	return;
 }
 
 
 void D3DClass::TurnZBufferOff()
 {
-	m_deviceContext->OMSetDepthStencilState(m_depthDisabledStencilState, 1);
+	m_deviceContext->OMSetDepthStencilState(m_depthDisabledStencilState.Get(), 1);
 	return;
 }
 
@@ -551,18 +516,19 @@ void D3DClass::SetBlendState(ID3D11BlendState* state)
 
 void D3DClass::TurnOnAlphaBlending()
 {
-	SetBlendState(m_alphaEnableBlendingState);
+	SetBlendState(m_alphaEnableBlendingState.Get());
 }
 
 void D3DClass::TurnOffAlphaBlending()
 {
-	SetBlendState(m_alphaDisableBlendingState);
+	SetBlendState(m_alphaDisableBlendingState.Get());
 }
 
 void D3DClass::SetBackBufferRenderTarget()
 {
 	// 렌더 타겟 뷰와 깊이 스텐실 버퍼를 출력 렌더 파이프 라인에 바인딩합니다.
-	m_deviceContext->OMSetRenderTargets(1, &m_renderTargetView, m_depthStencilView);
+	ID3D11RenderTargetView* renderTargetView = m_renderTargetView.Get();
+	m_deviceContext->OMSetRenderTargets(1, &renderTargetView, m_depthStencilView.Get());
 }
 
 
@@ -576,24 +542,24 @@ void D3DClass::ResetViewport()
 void D3DClass::TurnOnCulling()
 {
 	// 컬링 래스터 라이저 상태를 설정합니다.
-	m_deviceContext->RSSetState(m_rasterState);
+	m_deviceContext->RSSetState(m_rasterState.Get());
 }
 
 
 void D3DClass::TurnOffCulling()
 {
 	// 뒷면 없음 컬링 래스터 라이저 상태를 설정합니다.
-	m_deviceContext->RSSetState(m_rasterStateNoCulling);
+	m_deviceContext->RSSetState(m_rasterStateNoCulling.Get());
 }
 
 // 투명 객체용 깊이 스텐실 상태 활성화 (깊이 테스트 ON, 깊이 쓰기 OFF)
 void D3DClass::EnableDepthTestingWithoutWrites()
 {
-	m_deviceContext->OMSetDepthStencilState(m_depthTestNoWriteState, 1);
+	m_deviceContext->OMSetDepthStencilState(m_depthTestNoWriteState.Get(), 1);
 }
 
 // 일반 깊이 스텐실 상태로 복원 (깊이 테스트 ON, 깊이 쓰기 ON)
 void D3DClass::DisableDepthTestingWithoutWrites()
 {
-	m_deviceContext->OMSetDepthStencilState(m_depthStencilState, 1);
+	m_deviceContext->OMSetDepthStencilState(m_depthStencilState.Get(), 1);
 }

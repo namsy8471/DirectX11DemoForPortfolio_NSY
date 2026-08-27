@@ -1,20 +1,27 @@
 #pragma once
 
-class TimerClass
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <Windows.h>
+
+class TimerClass final
 {
 public:
-	TimerClass();
-	TimerClass(const TimerClass&);
-	~TimerClass();
+	TimerClass() noexcept = default;
+	~TimerClass() = default;
 
-	bool Initialize();
-	void Frame();
+	TimerClass(const TimerClass&) = delete;
+	TimerClass& operator=(const TimerClass&) = delete;
 
-	float GetTime();
+	[[nodiscard]] bool Initialize() noexcept;
+	void Reset() noexcept;
+	void Frame() noexcept;
+
+	[[nodiscard]] float GetTime() const noexcept;
 
 private:
-	LARGE_INTEGER m_frequency;
-	float m_ticksPerMs = 0;
-	LARGE_INTEGER m_startTime;
-	float m_frameTime = 0;
+	LARGE_INTEGER m_startTime{};
+	double m_millisecondsPerTick = 0.0;
+	float m_frameTimeMilliseconds = 0.0f;
 };

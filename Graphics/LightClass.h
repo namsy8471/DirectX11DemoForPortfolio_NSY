@@ -1,42 +1,42 @@
 #pragma once
 
-class LightClass
+#include <DirectXMath.h>
+
+class LightClass final
 {
 public:
-	LightClass();
-	LightClass(const LightClass&);
-	~LightClass();
+	LightClass() noexcept;
+	~LightClass() = default;
 
-	void SetAmbientColor(XMFLOAT4);
-	void SetDiffuseColor(XMFLOAT4);
-	void SetPosition(XMFLOAT3);
-	void SetLookAt(XMFLOAT3);
-	void SetSpecularColor(XMFLOAT4);
-	void SetSpecularPower(float);
+	LightClass(const LightClass&) = delete;
+	LightClass& operator=(const LightClass&) = delete;
 
-	XMFLOAT4 GetAmbientColor();
-	XMFLOAT4 GetDiffuseColor();
-	XMFLOAT3 GetDirection();
-	XMFLOAT4 GetSpecularColor();
-	float GetSpecularPower();
-	XMFLOAT3 GetPosition();
+	void SetAmbientColor(const DirectX::XMFLOAT4& color) noexcept;
+	void SetDiffuseColor(const DirectX::XMFLOAT4& color) noexcept;
+	void SetPosition(const DirectX::XMFLOAT3& position) noexcept;
+	void SetLookAt(const DirectX::XMFLOAT3& lookAt) noexcept;
+	void SetSpecularColor(const DirectX::XMFLOAT4& color) noexcept;
+	void SetSpecularPower(float power) noexcept;
 
+	[[nodiscard]] DirectX::XMFLOAT4 GetAmbientColor() const noexcept;
+	[[nodiscard]] DirectX::XMFLOAT4 GetDiffuseColor() const noexcept;
+	[[nodiscard]] DirectX::XMFLOAT3 GetDirection() const noexcept;
+	[[nodiscard]] DirectX::XMFLOAT4 GetSpecularColor() const noexcept;
+	[[nodiscard]] float GetSpecularPower() const noexcept;
+	[[nodiscard]] DirectX::XMFLOAT3 GetPosition() const noexcept;
 
-	void GenerateViewMatrix();
-	void GenerateProjectionMatrix(float, float);
-
-	void GetViewMatrix(XMMATRIX&);
-	void GetProjectionMatrix(XMMATRIX&);
+	void GenerateViewMatrix() noexcept;
+	void GenerateProjectionMatrix(float screenDepth, float screenNear) noexcept;
+	void GetViewMatrix(DirectX::XMMATRIX& viewMatrix) const noexcept;
+	void GetProjectionMatrix(DirectX::XMMATRIX& projectionMatrix) const noexcept;
 
 private:
-	XMFLOAT4 m_ambientColor;
-	XMFLOAT4 m_diffuseColor;
-	XMFLOAT3 m_lookAt;
-	XMFLOAT4 m_specularColor;
-	float m_specularPower;
-
-	XMFLOAT3 m_position;
-
-	XMMATRIX m_viewMatrix;
-	XMMATRIX m_projectionMatrix;
+	DirectX::XMFLOAT4 m_ambientColor{0.0f, 0.0f, 0.0f, 0.0f};
+	DirectX::XMFLOAT4 m_diffuseColor{0.0f, 0.0f, 0.0f, 0.0f};
+	DirectX::XMFLOAT3 m_lookAt{0.0f, 0.0f, 0.0f};
+	DirectX::XMFLOAT4 m_specularColor{0.0f, 0.0f, 0.0f, 0.0f};
+	float m_specularPower = 0.0f;
+	DirectX::XMFLOAT3 m_position{0.0f, 0.0f, 0.0f};
+	DirectX::XMMATRIX m_viewMatrix;
+	DirectX::XMMATRIX m_projectionMatrix;
 };

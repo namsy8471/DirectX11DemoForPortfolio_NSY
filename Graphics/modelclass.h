@@ -1,110 +1,71 @@
-////////////////////////////////////////////////////////////////////////////////
-// Filename: modelclass.h
-////////////////////////////////////////////////////////////////////////////////
-#ifndef _MODELCLASS_H_
-#define _MODELCLASS_H_
+#ifndef MODELCLASS_H
+#define MODELCLASS_H
 
-/////////////
-// LINKING //
-/////////////
-#pragma comment(lib, "lib/assimp-vc142-mtd.lib")
+#include <cstdint>
+#include <vector>
 
-//////////////
-// INCLUDES //
-//////////////
 #include <d3d11.h>
-#include <directxmath.h>
+#include <DirectXMath.h>
+#include <wrl/client.h>
 
-using namespace DirectX;
-
-#include <fstream>
-#include <atlstr.h>
-#include "textureclass.h"
 #include "CollisionHelpers.h"
 
-using namespace std;
-
-// ASSIMP library
-#include "include/assimp/Importer.hpp"
-#include "include/assimp/scene.h"
-#include "include/assimp/postprocess.h"
-
-////////////////////////////////////////////////////////////////////////////////
-// Class name: ModelClass
-////////////////////////////////////////////////////////////////////////////////
-class ModelClass
+// ModelClass is a render resource. Gameplay state and world transforms belong to
+// Engine::Scene::GameObject.
+class ModelClass final
 {
-private:
-	struct VertexTypeForAssimp
+public:
+	struct Vertex
 	{
-		XMFLOAT3 position;
-		XMFLOAT2 texture;
-		XMFLOAT3 normal;
+		DirectX::XMFLOAT3 position;
+		DirectX::XMFLOAT2 texture;
+		DirectX::XMFLOAT3 normal;
 	};
 
-public:
-	ModelClass();
-	ModelClass(const ModelClass&);
-	~ModelClass();
+	ModelClass() = default;
+	~ModelClass() = default;
 
-	bool Initialize(HWND, ID3D11Device*, const WCHAR*, const WCHAR*);
-	void Shutdown();
-	void Render(ID3D11DeviceContext*);
+	ModelClass(const ModelClass&) = delete;
+	ModelClass& operator=(const ModelClass&) = delete;
+	ModelClass(ModelClass&&) noexcept = default;
+	ModelClass& operator=(ModelClass&&) noexcept = default;
 
-	int GetIndexCount();
+	// HWND is retained only for source compatibility with the legacy call site.
+	// ModelClass no longer owns UI or error-reporting behavior.
+	[[nodiscard]] bool Initialize(
+		HWND window,
+		ID3D11Device* device,
+		const wchar_t* modelFilename,
+		const wchar_t* textureFilename);
 
-	ID3D11ShaderResourceView* GetTexture();
-	ID3D11ShaderResourceView* GetTexture2();
-	ID3D11ShaderResourceView* GetTexture3();
+	void Shutdown() noexcept;
+	void Render(ID3D11DeviceContext* deviceContext) const noexcept;
 
-	void SetPosition(float, float, float);
-	void GetPosition(float&, float&, float&);
+	[[nodiscard]] int GetIndexCount() const noexcept;
+	[[nodiscard]] int GetVertexCount() const noexcept;
+	[[nodiscard]] int GetPolygonCount() const noexcept;
+	[[nodiscard]] int CountPolygons() const noexcept;
+	[[nodiscard]] int CountMeshes() const noexcept;
 
-	void SetRotationByDegrees(float, float, float);
-	void GetRotation(float&, float&, float&);
-
-	void SetScale(float, float, float);
-	void GetScale(float&, float&, float&);
-
-	int CountPolygons();
-	int CountMeshes();
-
-	bool isAlive() { return alive; }
-	void SetDie() { alive = false; }
-
-	// AABB °ü·Ã ¸Þ¼­µå
-	CollisionHelpers::AABB GetLocalAABB() const { return m_localAABB; }
-	CollisionHelpers::AABB GetWorldAABB() const;
-	XMMATRIX GetWorldMatrix() const;
+	[[nodiscard]] ID3D11ShaderResourceView* GetTexture() const noexcept;
+	[[nodiscard]] CollisionHelpers::AABB GetLocalAABB() const noexcept;
 
 private:
-	bool InitializeBuffers(HWND, ID3D11Device*);
-	void ShutdownBuffers();
-	void RenderBuffers(ID3D11DeviceContext*);
+	[[nodiscard]] bool LoadObj(const wchar_t* filename);
+	void GenerateMissingNormals(const std::vector<bool>& needsGeneratedNormal);
+	void RecalculateLocalAABB() noexcept;
 
-	bool LoadTexture(ID3D11Device*, const WCHAR*);
-	void ReleaseTexture();
-
-	bool LoadModel(CString, UINT flag);
-	void ReleaseModel();
+	[[nodiscard]] bool InitializeBuffers(ID3D11Device* device);
+	[[nodiscard]] bool LoadTexture(ID3D11Device* device, const wchar_t* filename) noexcept;
 
 private:
+	std::vector<Vertex> m_vertices;
+	std::vector<std::uint32_t> m_indices;
 
-	bool alive = true;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_vertexBuffer;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_indexBuffer;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_texture;
 
-	ID3D11Buffer* m_vertexBuffer, * m_indexBuffer;
-	unsigned int m_vertexCount, m_indexCount, m_faceCount;
-	
-	VertexTypeForAssimp* m_vertices;
-	unsigned long* m_indices;
-
-	TextureClass* m_Texture;
-
-	XMFLOAT3 m_position = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	XMFLOAT3 m_rotation = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	XMFLOAT3 m_scale = XMFLOAT3(1.0f, 1.0f, 1.0f);
-
-	// Local space AABB (¸ðµ¨ ÁÂÇ¥°è)
 	CollisionHelpers::AABB m_localAABB;
 };
 

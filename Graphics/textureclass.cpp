@@ -1,4 +1,4 @@
-////////////////////////////////////////////////////////////////////////////////
+﻿////////////////////////////////////////////////////////////////////////////////
 // Filename: textureclass.cpp
 ////////////////////////////////////////////////////////////////////////////////
 #include "stdafx.h"
@@ -9,49 +9,42 @@ using namespace DirectX;
 
 TextureClass::TextureClass()
 {
-	m_texture = 0;
-}
-
-
-TextureClass::TextureClass(const TextureClass& other)
-{
 }
 
 
 TextureClass::~TextureClass()
 {
+	Shutdown();
 }
 
 
 bool TextureClass::Initialize(ID3D11Device* device, const WCHAR* filename)
 {
-	HRESULT result;
+	Shutdown();
+	if (device == nullptr || filename == nullptr)
+	{
+		return false;
+	}
 
 	// Load texture data from a file by using DDS texture loader.
-	result = CreateDDSTextureFromFile(device, filename, nullptr, &m_texture);
-	if (FAILED(result))
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> texture;
+	if (FAILED(CreateDDSTextureFromFile(device, filename, nullptr, texture.GetAddressOf())))
 	{
-			return false;
+		return false;
 	}
-	
+
+	m_texture.Swap(texture);
 	return true;
 }
 
 
 void TextureClass::Shutdown()
 {
-	// Release the texture resource.
-	if(m_texture)
-	{
-		m_texture->Release();
-		m_texture = 0;
-	}
-
-	return;
+	m_texture.Reset();
 }
 
 
 ID3D11ShaderResourceView* TextureClass::GetTexture()
 {
-	return m_texture;
+	return m_texture.Get();
 }

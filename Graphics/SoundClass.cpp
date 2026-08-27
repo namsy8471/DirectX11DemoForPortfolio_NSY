@@ -1,363 +1,266 @@
 #include "SoundClass.h"
 
+#include <algorithm>
+#include <cstring>
+#include <fstream>
+#include <vector>
 
-SoundClass::SoundClass()
+using Microsoft::WRL::ComPtr;
+
+namespace
 {
-	m_DirectSound = 0;
-	m_primaryBuffer = 0;
-	m_secondaryBuffer1 = 0;
-	m_secondaryBuffer2 = 0;
+	bool HasFourCc(const char (&value)[4], const char (&expected)[5]) noexcept
+	{
+		return std::memcmp(value, expected, 4) == 0;
+	}
 }
-
-
-SoundClass::SoundClass(const SoundClass& other)
-{
-}
-
 
 SoundClass::~SoundClass()
 {
+	Shutdown();
 }
 
 bool SoundClass::Initialize(HWND hwnd)
 {
-	// Initialize direct sound and the primary sound buffer.
-	if (!InitializeDirectSound(hwnd))
-	{
-		return false;
-	}
-
-	// Load a wave audio file onto a secondary buffer.
-	if (!LoadWaveFile("./data/sound01.wav", &m_secondaryBuffer1))
-	{
-		return false;
-	}
-
-	// Load a wave audio file onto a secondary buffer.
-	if (!LoadWaveFile("./data/birdSoundBGM.wav", &m_secondaryBuffer2))
-	{
-		return false;
-	}
-
-	// Load a wave audio file onto a secondary buffer.
-	if (!LoadWaveFile("./data/GunShotSound.wav", &m_secondaryBuffer3))
-	{
-		return false;
-	}
-
-	return PlayWaveFile();
+	return Initialize(
+		hwnd,
+		"./data/sound01.wav",
+		"./data/birdSoundBGM.wav",
+		"./data/GunShotSound.wav");
 }
 
-
-void SoundClass::Shutdown()
+bool SoundClass::Initialize(
+	HWND hwnd,
+	const char* startupSoundPath,
+	const char* backgroundMusicPath,
+	const char* actionSoundPath)
 {
-	// Release the secondary buffer.
-	ShutdownWaveFile(&m_secondaryBuffer1);
+	Shutdown();
 
-	// Shutdown the Direct Sound API.
-	ShutdownDirectSound();
+	if (!InitializeDirectSound(hwnd) ||
+		!LoadWaveFile(startupSoundPath, m_secondaryBuffer1) ||
+		!LoadWaveFile(backgroundMusicPath, m_secondaryBuffer2) ||
+		!LoadWaveFile(actionSoundPath, m_secondaryBuffer3) ||
+		!PlayWaveFile())
+	{
+		Shutdown();
+		return false;
+	}
+
+	return true;
 }
 
+void SoundClass::Shutdown() noexcept
+{
+	m_secondaryBuffer3.Reset();
+	m_secondaryBuffer2.Reset();
+	m_secondaryBuffer1.Reset();
+	m_primaryBuffer.Reset();
+	m_directSound.Reset();
+}
 
 bool SoundClass::InitializeDirectSound(HWND hwnd)
 {
-	// Initialize the direct sound interface pointer for the default sound device.
-	if (FAILED(DirectSoundCreate8(NULL, &m_DirectSound, NULL)))
+	if (FAILED(DirectSoundCreate8(nullptr, m_directSound.ReleaseAndGetAddressOf(), nullptr)))
 	{
 		return false;
 	}
 
-	// Set the cooperative level to priority so the format of the primary sound buffer can be modified.
-	if (FAILED(m_DirectSound->SetCooperativeLevel(hwnd, DSSCL_PRIORITY)))
+	if (FAILED(m_directSound->SetCooperativeLevel(hwnd, DSSCL_PRIORITY)))
 	{
 		return false;
 	}
 
-	// Setup the primary buffer description.
-	DSBUFFERDESC bufferDesc;
-	bufferDesc.dwSize = sizeof(DSBUFFERDESC);
+	DSBUFFERDESC bufferDesc = {};
+	bufferDesc.dwSize = sizeof(bufferDesc);
 	bufferDesc.dwFlags = DSBCAPS_PRIMARYBUFFER | DSBCAPS_CTRLVOLUME;
-	bufferDesc.dwBufferBytes = 0;
-	bufferDesc.dwReserved = 0;
-	bufferDesc.lpwfxFormat = NULL;
 	bufferDesc.guid3DAlgorithm = GUID_NULL;
-
-	// Get control of the primary sound buffer on the default sound device.
-	if (FAILED(m_DirectSound->CreateSoundBuffer(&bufferDesc, &m_primaryBuffer, NULL)))
+	if (FAILED(m_directSound->CreateSoundBuffer(
+		&bufferDesc,
+		m_primaryBuffer.ReleaseAndGetAddressOf(),
+		nullptr)))
 	{
 		return false;
 	}
 
-	// Setup the format of the primary sound bufffer.
-	// In this case it is a .WAV file recorded at 44,100 samples per second in 16-bit stereo (cd audio format).
-	WAVEFORMATEX waveFormat;
+	WAVEFORMATEX waveFormat = {};
 	waveFormat.wFormatTag = WAVE_FORMAT_PCM;
 	waveFormat.nSamplesPerSec = 44100;
 	waveFormat.wBitsPerSample = 16;
 	waveFormat.nChannels = 2;
-	waveFormat.nBlockAlign = (waveFormat.wBitsPerSample / 8) * waveFormat.nChannels;
+	waveFormat.nBlockAlign = static_cast<WORD>((waveFormat.wBitsPerSample / 8) * waveFormat.nChannels);
 	waveFormat.nAvgBytesPerSec = waveFormat.nSamplesPerSec * waveFormat.nBlockAlign;
-	waveFormat.cbSize = 0;
 
-	// Set the primary buffer to be the wave format specified.
-	if (FAILED(m_primaryBuffer->SetFormat(&waveFormat)))
-	{
-		return false;
-	}
-
-	return true;
+	return SUCCEEDED(m_primaryBuffer->SetFormat(&waveFormat));
 }
 
-
-void SoundClass::ShutdownDirectSound()
+bool SoundClass::LoadWaveFile(const char* filename, ComPtr<IDirectSoundBuffer8>& secondaryBuffer)
 {
-	// Release the primary sound buffer pointer.
-	if (m_primaryBuffer)
-	{
-		m_primaryBuffer->Release();
-		m_primaryBuffer = 0;
-	}
-
-	// Release the direct sound interface pointer.
-	if (m_DirectSound)
-	{
-		m_DirectSound->Release();
-		m_DirectSound = 0;
-	}
-}
-
-
-bool SoundClass::LoadWaveFile(const char* filename, IDirectSoundBuffer8** secondaryBuffer)
-{
-	// Open the wave file in binary.
-	FILE* filePtr = nullptr;
-	int error = fopen_s(&filePtr, filename, "rb");
-	if (error != 0)
+	secondaryBuffer.Reset();
+	if (filename == nullptr || !m_directSound)
 	{
 		return false;
 	}
 
-	// Read in the wave file header.
-	WaveHeaderType waveFileHeader;
-	unsigned int count = fread(&waveFileHeader, sizeof(waveFileHeader), 1, filePtr);
-	if (count != 1)
+	std::ifstream file(filename, std::ios::binary);
+	if (!file)
 	{
 		return false;
 	}
 
-	// Check that the chunk ID is the RIFF format.
-	if ((waveFileHeader.chunkId[0] != 'R') || (waveFileHeader.chunkId[1] != 'I') ||
-		(waveFileHeader.chunkId[2] != 'F') || (waveFileHeader.chunkId[3] != 'F'))
+	WaveHeaderType header = {};
+	file.read(reinterpret_cast<char*>(&header), sizeof(header));
+	if (!file ||
+		!HasFourCc(header.chunkId, "RIFF") ||
+		!HasFourCc(header.format, "WAVE") ||
+		!HasFourCc(header.subChunkId, "fmt ") ||
+		!HasFourCc(header.dataChunkId, "data") ||
+		header.audioFormat != WAVE_FORMAT_PCM ||
+		header.numChannels != 2 ||
+		header.sampleRate != 44100 ||
+		header.bitsPerSample != 16 ||
+		header.dataSize == 0)
 	{
 		return false;
 	}
 
-	// Check that the file format is the WAVE format.
-	if ((waveFileHeader.format[0] != 'W') || (waveFileHeader.format[1] != 'A') ||
-		(waveFileHeader.format[2] != 'V') || (waveFileHeader.format[3] != 'E'))
+	const std::streampos dataStart = file.tellg();
+	file.seekg(0, std::ios::end);
+	const std::streampos fileEnd = file.tellg();
+	if (dataStart < 0 || fileEnd < dataStart ||
+		static_cast<unsigned long long>(fileEnd - dataStart) < header.dataSize)
+	{
+		return false;
+	}
+	file.seekg(dataStart);
+
+	std::vector<unsigned char> waveData(header.dataSize);
+	file.read(reinterpret_cast<char*>(waveData.data()), static_cast<std::streamsize>(waveData.size()));
+	if (!file)
 	{
 		return false;
 	}
 
-	// Check that the sub chunk ID is the fmt format.
-	if ((waveFileHeader.subChunkId[0] != 'f') || (waveFileHeader.subChunkId[1] != 'm') ||
-		(waveFileHeader.subChunkId[2] != 't') || (waveFileHeader.subChunkId[3] != ' '))
-	{
-		return false;
-	}
-
-	// Check that the audio format is WAVE_FORMAT_PCM.
-	if (waveFileHeader.audioFormat != WAVE_FORMAT_PCM)
-	{
-		return false;
-	}
-
-	// Check that the wave file was recorded in stereo format.
-	if (waveFileHeader.numChannels != 2)
-	{
-		return false;
-	}
-
-	// Check that the wave file was recorded at a sample rate of 44.1 KHz.
-	if (waveFileHeader.sampleRate != 44100)
-	{
-		return false;
-	}
-
-	// Ensure that the wave file was recorded in 16 bit format.
-	if (waveFileHeader.bitsPerSample != 16)
-	{
-		return false;
-	}
-
-	// Check for the data chunk header.
-	if ((waveFileHeader.dataChunkId[0] != 'd') || (waveFileHeader.dataChunkId[1] != 'a') ||
-		(waveFileHeader.dataChunkId[2] != 't') || (waveFileHeader.dataChunkId[3] != 'a'))
-	{
-		return false;
-	}
-
-	// Set the wave format of secondary buffer that this wave file will be loaded onto.
-	WAVEFORMATEX waveFormat;
+	WAVEFORMATEX waveFormat = {};
 	waveFormat.wFormatTag = WAVE_FORMAT_PCM;
-	waveFormat.nSamplesPerSec = 44100;
-	waveFormat.wBitsPerSample = 16;
-	waveFormat.nChannels = 2;
-	waveFormat.nBlockAlign = (waveFormat.wBitsPerSample / 8) * waveFormat.nChannels;
-	waveFormat.nAvgBytesPerSec = waveFormat.nSamplesPerSec * waveFormat.nBlockAlign;
-	waveFormat.cbSize = 0;
+	waveFormat.nSamplesPerSec = header.sampleRate;
+	waveFormat.wBitsPerSample = header.bitsPerSample;
+	waveFormat.nChannels = header.numChannels;
+	waveFormat.nBlockAlign = header.blockAlign;
+	waveFormat.nAvgBytesPerSec = header.bytesPerSecond;
 
-	// Set the buffer description of the secondary sound buffer that the wave file will be loaded onto.
-	DSBUFFERDESC bufferDesc;
-	bufferDesc.dwSize = sizeof(DSBUFFERDESC);
+	DSBUFFERDESC bufferDesc = {};
+	bufferDesc.dwSize = sizeof(bufferDesc);
 	bufferDesc.dwFlags = DSBCAPS_CTRLVOLUME;
-	bufferDesc.dwBufferBytes = waveFileHeader.dataSize;
-	bufferDesc.dwReserved = 0;
+	bufferDesc.dwBufferBytes = header.dataSize;
 	bufferDesc.lpwfxFormat = &waveFormat;
 	bufferDesc.guid3DAlgorithm = GUID_NULL;
 
-	// Create a temporary sound buffer with the specific buffer settings.
-	IDirectSoundBuffer* tempBuffer = nullptr;
-	if (FAILED(m_DirectSound->CreateSoundBuffer(&bufferDesc, &tempBuffer, NULL)))
+	ComPtr<IDirectSoundBuffer> temporaryBuffer;
+	if (FAILED(m_directSound->CreateSoundBuffer(&bufferDesc, temporaryBuffer.GetAddressOf(), nullptr)))
 	{
 		return false;
 	}
 
-	// Test the buffer format against the direct sound 8 interface and create the secondary buffer.
-	if (FAILED(tempBuffer->QueryInterface(IID_IDirectSoundBuffer8, (void**)&*secondaryBuffer)))
+	ComPtr<IDirectSoundBuffer8> loadedBuffer;
+	if (FAILED(temporaryBuffer->QueryInterface(
+		IID_IDirectSoundBuffer8,
+		reinterpret_cast<void**>(loadedBuffer.GetAddressOf()))))
 	{
 		return false;
 	}
 
-	// Release the temporary buffer.
-	tempBuffer->Release();
-	tempBuffer = 0;
-
-	// Move to the beginning of the wave data which starts at the end of the data chunk header.
-	fseek(filePtr, sizeof(WaveHeaderType), SEEK_SET);
-
-	// Create a temporary buffer to hold the wave file data.
-	unsigned char* waveData = new unsigned char[waveFileHeader.dataSize];
-	if (!waveData)
+	void* firstRegion = nullptr;
+	DWORD firstRegionSize = 0;
+	void* secondRegion = nullptr;
+	DWORD secondRegionSize = 0;
+	if (FAILED(loadedBuffer->Lock(
+		0,
+		header.dataSize,
+		&firstRegion,
+		&firstRegionSize,
+		&secondRegion,
+		&secondRegionSize,
+		0)))
 	{
 		return false;
 	}
 
-	// Read in the wave file data into the newly created buffer.
-	count = fread(waveData, 1, waveFileHeader.dataSize, filePtr);
-	if (count != waveFileHeader.dataSize)
+	const size_t lockedSize = static_cast<size_t>(firstRegionSize) + secondRegionSize;
+	if (lockedSize < waveData.size())
+	{
+		loadedBuffer->Unlock(firstRegion, firstRegionSize, secondRegion, secondRegionSize);
+		return false;
+	}
+
+	const size_t firstCopySize = (std::min)(static_cast<size_t>(firstRegionSize), waveData.size());
+	if (firstCopySize > 0)
+	{
+		std::memcpy(firstRegion, waveData.data(), firstCopySize);
+	}
+	if (secondRegionSize > 0 && firstCopySize < waveData.size())
+	{
+		std::memcpy(
+			secondRegion,
+			waveData.data() + firstCopySize,
+			waveData.size() - firstCopySize);
+	}
+
+	if (FAILED(loadedBuffer->Unlock(firstRegion, firstRegionSize, secondRegion, secondRegionSize)))
 	{
 		return false;
 	}
 
-	// Close the file once done reading.
-	error = fclose(filePtr);
-	if (error != 0)
-	{
-		return false;
-	}
-
-	// Lock the secondary buffer to write wave data into it.
-	unsigned char* bufferPtr = nullptr;
-	unsigned long bufferSize = 0;
-	if (FAILED((*secondaryBuffer)->Lock(0, waveFileHeader.dataSize, (void**)&bufferPtr, (DWORD*)&bufferSize, NULL, 0, 0)))
-	{
-		return false;
-	}
-
-	// Copy the wave data into the buffer.
-	memcpy(bufferPtr, waveData, waveFileHeader.dataSize);
-
-	// Unlock the secondary buffer after the data has been written to it.
-	if (FAILED((*secondaryBuffer)->Unlock((void*)bufferPtr, bufferSize, NULL, 0)))
-	{
-		return false;
-	}
-
-	// Release the wave data since it was copied into the secondary buffer.
-	delete[] waveData;
-	waveData = 0;
-
+	secondaryBuffer = loadedBuffer;
 	return true;
 }
-
-
-void SoundClass::ShutdownWaveFile(IDirectSoundBuffer8** secondaryBuffer)
-{
-	// Release the secondary sound buffer.
-	if (*secondaryBuffer)
-	{
-		(*secondaryBuffer)->Release();
-		*secondaryBuffer = 0;
-	}
-}
-
 
 bool SoundClass::PlayWaveFile()
 {
-	// Set position at the beginning of the sound buffer.
-	if (FAILED(m_secondaryBuffer1->SetCurrentPosition(0)))
+	if (!m_secondaryBuffer1)
 	{
 		return false;
 	}
 
-	// Set volume of the buffer to 75%.
-	if (FAILED(m_secondaryBuffer1->SetVolume(-2500)))
-	{
-		return false;
-	}
-
-	// Play the contents of the secondary sound buffer.
-	if (FAILED(m_secondaryBuffer1->Play(0, 0, 0)))
-	{
-		return false;
-	}
-
-	return true;
+	return SUCCEEDED(m_secondaryBuffer1->SetCurrentPosition(0)) &&
+		SUCCEEDED(m_secondaryBuffer1->SetVolume(-2500)) &&
+		SUCCEEDED(m_secondaryBuffer1->Play(0, 0, 0));
 }
 
-
-// 시작 지점을 정하지 않아 버퍼가 맨 끝에 도달하면 처음으로 돌아감
 void SoundClass::PlaySoundForBGM()
 {
-	// Set position at the beginning of the sound buffer.
-	if (FAILED(m_secondaryBuffer1->SetCurrentPosition(0)))
+	if (!m_secondaryBuffer2)
 	{
 		return;
 	}
 
-	// Set volume of the buffer to 100%.
-	if (FAILED(m_secondaryBuffer2->SetVolume(DSBVOLUME_MAX)))
+	DWORD status = 0;
+	if (SUCCEEDED(m_secondaryBuffer2->GetStatus(&status)) && (status & DSBSTATUS_PLAYING) != 0)
 	{
 		return;
 	}
 
-	// Play the contents of the secondary sound buffer.
-	if (FAILED(m_secondaryBuffer2->Play(0, 0, 0)))
+	if (FAILED(m_secondaryBuffer2->SetCurrentPosition(0)) ||
+		FAILED(m_secondaryBuffer2->SetVolume(DSBVOLUME_MAX)))
 	{
 		return;
 	}
 
+	m_secondaryBuffer2->Play(0, 0, 0);
 }
 
 void SoundClass::PlaySoundForSFX()
 {
-	// Set position at the beginning of the sound buffer.
-	if (FAILED(m_secondaryBuffer3->SetCurrentPosition(0)))
+	if (!m_secondaryBuffer3)
 	{
 		return;
 	}
 
-	// Set volume of the buffer to 80%.
-	if (FAILED(m_secondaryBuffer3->SetVolume(-2000)))
+	if (FAILED(m_secondaryBuffer3->SetCurrentPosition(0)) ||
+		FAILED(m_secondaryBuffer3->SetVolume(-2000)))
 	{
 		return;
 	}
 
-	// Play the contents of the secondary sound buffer.
-	if (FAILED(m_secondaryBuffer3->Play(0, 0, 0)))
-	{
-		return;
-	}
-
+	m_secondaryBuffer3->Play(0, 0, 0);
 }

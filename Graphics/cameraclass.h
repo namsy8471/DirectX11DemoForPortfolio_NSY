@@ -1,91 +1,48 @@
-////////////////////////////////////////////////////////////////////////////////
-// Filename: cameraclass.h
-////////////////////////////////////////////////////////////////////////////////
-#ifndef _CAMERACLASS_H_
-#define _CAMERACLASS_H_
+#pragma once
 
-
-//////////////
-// INCLUDES //
-//////////////
-#include <directxmath.h>
+#include <DirectXMath.h>
 
 #include "AlignedAllocationPolicy.h"
 
-using namespace DirectX;
-
-////////////////////////////////////////////////////////////////////////////////
-// Class name: CameraClass
-////////////////////////////////////////////////////////////////////////////////
-class CameraClass : public AlignedAllocationPolicy<16>
+// CameraClass owns only camera state and view matrices. Input mapping lives in
+// FirstPersonCameraController, while rendering consumes the matrices as data.
+class CameraClass final : public AlignedAllocationPolicy<16>
 {
 public:
-	CameraClass();
-	CameraClass(const CameraClass&);
-	~CameraClass();
+	CameraClass() noexcept;
+	~CameraClass() = default;
 
-	void SetPosition(float, float, float);
-	void SetRotation(float, float, float);
-	
-	void SetPositionY(float y); // 새로 추가된 함수: Y 위치만 업데이트 (지형 높이 추적용)
+	CameraClass(const CameraClass&) = delete;
+	CameraClass& operator=(const CameraClass&) = delete;
 
-	void SetCamYaw(float);
-	void SetCamPitch(float);
+	[[nodiscard]] bool Initialize() noexcept;
 
-	XMFLOAT3 GetPosition();
-	XMFLOAT3 GetRotation();
+	void SetPosition(float x, float y, float z) noexcept;
+	void SetPositionY(float y) noexcept;
+	void SetRotation(float pitchDegrees, float yawDegrees, float rollDegrees) noexcept;
+	void SetCamYaw(float yawRadians) noexcept;
+	void SetCamPitch(float pitchRadians) noexcept;
 
-	float GetCamYaw();
-	float GetCamPitch();
+	[[nodiscard]] DirectX::XMFLOAT3 GetPosition() const noexcept;
+	[[nodiscard]] DirectX::XMFLOAT3 GetRotation() const noexcept;
+	[[nodiscard]] float GetCamYaw() const noexcept;
+	[[nodiscard]] float GetCamPitch() const noexcept;
 
-	bool Initialize();
-	void Render();
-	void UpdateCamera(float&, float&);
-	void GetViewMatrix(XMMATRIX&);
+	// Applies movement immediately during Update, so collision and terrain code
+	// observe the same camera state that the subsequent Render consumes.
+	void MoveLocal(float moveRight, float moveForward) noexcept;
+	void UpdateViewMatrix() noexcept;
+	void CaptureBaseViewMatrix() noexcept;
 
-	void RenderBaseViewMatrix();
-	void GetBaseViewMatrix(XMMATRIX&);
+	void GetViewMatrix(DirectX::XMMATRIX& viewMatrix) const noexcept;
+	void GetBaseViewMatrix(DirectX::XMMATRIX& viewMatrix) const noexcept;
 
 private:
-	XMFLOAT3 m_position;
-	XMFLOAT3 m_rotation;
-	XMMATRIX m_viewMatrix;
-	XMMATRIX m_baseViewMatrix;
-
-	XMVECTOR DefaultForward;
-	XMVECTOR DefaultRight;
-	XMVECTOR camForward;
-	XMVECTOR camRight;
-
-	XMMATRIX camRotationMatrix;
-	XMMATRIX groundWorld;
-
-	float camYaw = 0.0f;
-	float camPitch = 0.0f;
-	float camRoll = 0.0f;
-
-	float rotx = 0;
-	float rotz = 0;
-	float scaleX = 1.0f;
-	float scaleY = 1.0f;
-
-	XMMATRIX Rotationx;
-	XMMATRIX Rotationz;
-
-	XMMATRIX WVP;
-	XMMATRIX cube1World;
-	XMMATRIX cube2World;
-	XMMATRIX camView;
-	XMMATRIX camProjection;
-
-	XMMATRIX d2dWorld;
-
-	XMVECTOR camPosition;
-	XMVECTOR camTarget;
-	XMVECTOR camUp;
-
-	float camMoveLR = 0;
-	float camMoveBF = 0;
+	DirectX::XMFLOAT3 m_position{0.0f, 0.0f, 0.0f};
+	DirectX::XMFLOAT3 m_rotationDegrees{0.0f, 0.0f, 0.0f};
+	DirectX::XMMATRIX m_viewMatrix;
+	DirectX::XMMATRIX m_baseViewMatrix;
+	float m_yawRadians = 0.0f;
+	float m_pitchRadians = 0.0f;
+	float m_rollRadians = 0.0f;
 };
-
-#endif

@@ -1,23 +1,23 @@
 #pragma once
 
-/////////////
-// LINKING //
-/////////////
-#pragma comment(lib, "winmm.lib")
+#include <chrono>
 
-
-class FpsClass
+class FpsClass final
 {
 public:
-	FpsClass();
-	FpsClass(const FpsClass&);
-	~FpsClass();
+	FpsClass() noexcept = default;
+	~FpsClass() = default;
 
-	void Initialize();
-	void Frame();
-	int GetFps();
+	FpsClass(const FpsClass&) = delete;
+	FpsClass& operator=(const FpsClass&) = delete;
+
+	void Initialize() noexcept;
+	void Frame() noexcept;
+	[[nodiscard]] int GetFps() const noexcept;
 
 private:
-	int m_fps, m_count;
-	unsigned long m_startTime;
+	using Clock = std::chrono::steady_clock;
+	Clock::time_point m_sampleStart{};
+	int m_fps = 0;
+	int m_frameCount = 0;
 };

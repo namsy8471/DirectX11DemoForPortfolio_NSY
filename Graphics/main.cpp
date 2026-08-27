@@ -1,39 +1,27 @@
-////////////////////////////////////////////////////////////////////////////////
-// Filename: main.cpp
-////////////////////////////////////////////////////////////////////////////////
+#pragma comment(lib, "dinput8.lib")
+#pragma comment(lib, "dxguid.lib")
 
-//Include and link appropriate libraries and headers//
+#include "Engine/Application.h"
+#include "graphicsclass.h"
 
-#pragma comment (lib, "dinput8.lib")
-#pragma comment (lib, "dxguid.lib")
+#include <memory>
+#include <utility>
 
-#include "systemclass.h"
-
-
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pScmdline, int iCmdshow)
+int WINAPI WinMain(HINSTANCE, HINSTANCE, PSTR, int)
 {
-	SystemClass* System;
-	bool result;
-	
-	
-	// Create the system object.
-	System = new SystemClass;
-	if(!System)
-	{
-		return 0;
-	}
+	Engine::WindowConfig window;
+	window.title = L"DirectX 11 Portfolio Engine";
+	window.className = L"DirectX11PortfolioEngineWindow";
+	window.width = 800;
+	window.height = 600;
+	window.fullscreen = false;
+	window.resizable = false;
+	window.showCursor = false;
 
-	// Initialize and run the system object.
-	result = System->Initialize();
-	if(result)
-	{
-		System->Run();
-	}
+	auto sceneDefinition = Engine::Scene::SceneDefinition::CreatePortfolioDemo();
+	Engine::Application application(
+		std::make_unique<PortfolioGame>(std::move(sceneDefinition)),
+		window);
 
-	// Shutdown and release the system object.
-	System->Shutdown();
-	delete System;
-	System = 0;
-
-	return 0;
+	return application.Run();
 }

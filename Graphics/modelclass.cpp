@@ -1,366 +1,524 @@
-////////////////////////////////////////////////////////////////////////////////
-// Filename: modelclass.cpp
-////////////////////////////////////////////////////////////////////////////////
 #include "modelclass.h"
 
+#include "DDSTextureLoader.h"
 
-ModelClass::ModelClass()
+#include <algorithm>
+#include <charconv>
+#include <cwctype>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <limits>
+#include <sstream>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+#include <utility>
+
+namespace
 {
-	m_vertexBuffer = 0;
-	m_indexBuffer = 0;
-	m_vertices = 0;
-	m_indices = 0;
-
-	m_vertexCount = 0;
-	m_indexCount = 0;
-	m_faceCount = 0;
-
-	m_position = { 1.f, 1.f,1.f };
-	m_rotation = { 0.f, 0.f,0.f };
-	m_scale = { 1.f, 1.f,1.f };
-}
-
-
-ModelClass::ModelClass(const ModelClass& other)
-{
-}
-
-
-ModelClass::~ModelClass()
-{
-}
-
-
-bool ModelClass::Initialize(HWND hwnd, ID3D11Device* device, const WCHAR* modelFilename, const WCHAR* textureFilename)
-{
-	bool result;
-
-	// Load in the model data,
-	result = LoadModel(modelFilename, aiProcess_Triangulate | aiProcess_ConvertToLeftHanded);
-	if (!result)
+	struct ObjVertexKey
 	{
-		MessageBox(hwnd, L"LoadModel Error", L"Error", MB_OK);
+		int position = -1;
+		int texture = -1;
+		int normal = -1;
+
+		bool operator==(const ObjVertexKey& other) const noexcept
+		{
+			return position == other.position &&
+				texture == other.texture &&
+				normal == other.normal;
+		}
+	};
+
+	struct ObjVertexKeyHash
+	{
+		std::size_t operator()(const ObjVertexKey& key) const noexcept
+		{
+			std::size_t seed = static_cast<std::size_t>(key.position + 1);
+			seed ^= static_cast<std::size_t>(key.texture + 1) + 0x9e3779b9u + (seed << 6u) + (seed >> 2u);
+			seed ^= static_cast<std::size_t>(key.normal + 1) + 0x9e3779b9u + (seed << 6u) + (seed >> 2u);
+			return seed;
+		}
+	};
+
+	bool ParseInteger(std::string_view text, int& value) noexcept
+	{
+		if (text.empty())
+		{
+			return false;
+		}
+
+		const char* first = text.data();
+		const char* last = first + text.size();
+		const auto result = std::from_chars(first, last, value);
+		return result.ec == std::errc() && result.ptr == last;
+	}
+
+	bool ResolveObjIndex(int sourceIndex, std::size_t elementCount, int& resolvedIndex) noexcept
+	{
+		if (sourceIndex == 0 || elementCount > static_cast<std::size_t>((std::numeric_limits<int>::max)()))
+		{
+			return false;
+		}
+
+		const int count = static_cast<int>(elementCount);
+		const int candidate = sourceIndex > 0 ? sourceIndex - 1 : count + sourceIndex;
+		if (candidate < 0 || candidate >= count)
+		{
+			return false;
+		}
+
+		resolvedIndex = candidate;
+		return true;
+	}
+
+	bool ParseObjVertexKey(
+		std::string_view token,
+		std::size_t positionCount,
+		std::size_t textureCount,
+		std::size_t normalCount,
+		ObjVertexKey& key) noexcept
+	{
+		const std::size_t firstSlash = token.find('/');
+		const std::size_t secondSlash = firstSlash == std::string_view::npos
+			? std::string_view::npos
+			: token.find('/', firstSlash + 1u);
+
+		const std::string_view positionPart = token.substr(0u, firstSlash);
+		const std::string_view texturePart = firstSlash == std::string_view::npos
+			? std::string_view{}
+			: token.substr(
+				firstSlash + 1u,
+				secondSlash == std::string_view::npos
+					? std::string_view::npos
+					: secondSlash - firstSlash - 1u);
+		const std::string_view normalPart = secondSlash == std::string_view::npos
+			? std::string_view{}
+			: token.substr(secondSlash + 1u);
+
+		int sourceIndex = 0;
+		if (!ParseInteger(positionPart, sourceIndex) ||
+			!ResolveObjIndex(sourceIndex, positionCount, key.position))
+		{
+			return false;
+		}
+
+		if (!texturePart.empty())
+		{
+			if (!ParseInteger(texturePart, sourceIndex) ||
+				!ResolveObjIndex(sourceIndex, textureCount, key.texture))
+			{
+				return false;
+			}
+		}
+
+		if (!normalPart.empty())
+		{
+			if (!ParseInteger(normalPart, sourceIndex) ||
+				!ResolveObjIndex(sourceIndex, normalCount, key.normal))
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	DirectX::XMFLOAT3 NormalizedOrDefault(const DirectX::XMFLOAT3& normal) noexcept
+	{
+		using namespace DirectX;
+
+		const XMVECTOR value = XMLoadFloat3(&normal);
+		if (XMVectorGetX(XMVector3LengthSq(value)) <= 1.0e-12f)
+		{
+			return XMFLOAT3(0.0f, 1.0f, 0.0f);
+		}
+
+		XMFLOAT3 result;
+		XMStoreFloat3(&result, XMVector3Normalize(value));
+		return result;
+	}
+}
+
+bool ModelClass::Initialize(
+	HWND window,
+	ID3D11Device* device,
+	const wchar_t* modelFilename,
+	const wchar_t* textureFilename)
+{
+	(void)window;
+	Shutdown();
+
+	if (device == nullptr)
+	{
 		return false;
 	}
 
-	result = LoadTexture(device, textureFilename);
-	if (!result)
+	if (!LoadObj(modelFilename))
 	{
-		MessageBox(hwnd, L"LoadTexture Error", L"Error", MB_OK);
 		return false;
 	}
 
-	// Initialize the vertex and index buffers.
-	result = InitializeBuffers(hwnd, device);
-	if (!result)
+	if (!InitializeBuffers(device))
 	{
-		MessageBox(hwnd, L"InitializeBuffers Error", L"Error", MB_OK);
+		Shutdown();
+		return false;
+	}
+
+	if (!LoadTexture(device, textureFilename))
+	{
+		Shutdown();
 		return false;
 	}
 
 	return true;
 }
 
-void ModelClass::Shutdown()
+void ModelClass::Shutdown() noexcept
 {
-	// 모델 텍스쳐를 반환합니다.
-	ReleaseTexture();
-
-	// Shutdown the vertex and index buffers.
-	ShutdownBuffers();
-
-	// Release the model data.
-	ReleaseModel();
-
-	return;
+	m_texture.Reset();
+	m_indexBuffer.Reset();
+	m_vertexBuffer.Reset();
+	m_indices.clear();
+	m_vertices.clear();
+	m_localAABB = CollisionHelpers::AABB();
 }
 
-
-void ModelClass::Render(ID3D11DeviceContext* deviceContext)
+void ModelClass::Render(ID3D11DeviceContext* deviceContext) const noexcept
 {
-	// Put the vertex and index buffers on the graphics pipeline to prepare them for drawing.
-	RenderBuffers(deviceContext);
-
-	return;
-}
-
-
-int ModelClass::GetIndexCount()
-{
-	return m_indexCount;
-}
-
-ID3D11ShaderResourceView* ModelClass::GetTexture()
-{
-	return m_Texture->GetTexture();
-}
-
-
-bool ModelClass::InitializeBuffers(HWND hwnd, ID3D11Device* device)
-{
-	D3D11_BUFFER_DESC vertexBufferDesc, indexBufferDesc;
-	D3D11_SUBRESOURCE_DATA vertexData, indexData;
-	HRESULT result;
-
-	if (!m_vertices || !m_indices)
-		return false;
-
-	// Set up the description of the static vertex buffer.
-	vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-	vertexBufferDesc.ByteWidth = sizeof(VertexTypeForAssimp) * m_vertexCount;
-	vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	vertexBufferDesc.CPUAccessFlags = 0;
-	vertexBufferDesc.MiscFlags = 0;
-	vertexBufferDesc.StructureByteStride = 0;
-
-	// Give the subresource structure a pointer to the vertex data.
-	vertexData.pSysMem = m_vertices;
-	vertexData.SysMemPitch = 0;
-	vertexData.SysMemSlicePitch = 0;
-
-	// Now create the vertex buffer.
-	result = device->CreateBuffer(&vertexBufferDesc, &vertexData, &m_vertexBuffer);
-	if (FAILED(result))
+	if (deviceContext == nullptr || !m_vertexBuffer || !m_indexBuffer)
 	{
-		return false;
+		return;
 	}
 
-	// Set up the description of the static index buffer.
-	indexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-	indexBufferDesc.ByteWidth = sizeof(unsigned long) * m_indexCount;
-	indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	indexBufferDesc.CPUAccessFlags = 0;
-	indexBufferDesc.MiscFlags = 0;
-	indexBufferDesc.StructureByteStride = 0;
-
-	// Give the subresource structure a pointer to the index data.
-	indexData.pSysMem = m_indices;
-	indexData.SysMemPitch = 0;
-	indexData.SysMemSlicePitch = 0;
-
-	// Create the index buffer.
-	result = device->CreateBuffer(&indexBufferDesc, &indexData, &m_indexBuffer);
-	if (FAILED(result))
-	{
-		return false;
-	}
-
-	return true;
-}
-
-
-void ModelClass::ShutdownBuffers()
-{
-	// Release the index buffer.
-	if(m_indexBuffer)
-	{
-		m_indexBuffer->Release();
-		m_indexBuffer = 0;
-	}
-
-	// Release the vertex buffer.
-	if(m_vertexBuffer)
-	{
-		m_vertexBuffer->Release();
-		m_vertexBuffer = 0;
-	}
-
-	return;
-}
-
-
-void ModelClass::RenderBuffers(ID3D11DeviceContext* deviceContext)
-{
-	unsigned int stride;
-	unsigned int offset;
-
-
-	// Set vertex buffer stride and offset.
-	stride = sizeof(VertexTypeForAssimp); 
-	offset = 0;
-    
-	// Set the vertex buffer to active in the input assembler so it can be rendered.
-	deviceContext->IASetVertexBuffers(0, 1, &m_vertexBuffer, &stride, &offset);
-
-    // Set the index buffer to active in the input assembler so it can be rendered.
-	deviceContext->IASetIndexBuffer(m_indexBuffer, DXGI_FORMAT_R32_UINT, 0);
-
-    // Set the type of primitive that should be rendered from this vertex buffer, in this case triangles.
+	ID3D11Buffer* vertexBuffer = m_vertexBuffer.Get();
+	constexpr UINT stride = sizeof(Vertex);
+	constexpr UINT offset = 0u;
+	deviceContext->IASetVertexBuffers(0u, 1u, &vertexBuffer, &stride, &offset);
+	deviceContext->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0u);
 	deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	return;
 }
 
-bool ModelClass::LoadModel(CString filename, UINT flag)
+int ModelClass::GetIndexCount() const noexcept
 {
-	// Load model using ASSIMP
-	Assimp::Importer importer;
-	string strPath = std::string(CT2CA(filename.operator LPCWSTR()));
-	const aiScene* pScene = importer.ReadFile(strPath, flag);
+	return static_cast<int>(m_indices.size());
+}
 
-	if (!pScene) return false;
+int ModelClass::GetVertexCount() const noexcept
+{
+	return static_cast<int>(m_vertices.size());
+}
 
-	const aiMesh* pMesh = pScene->mMeshes[0];	// Assume it's a single mesh
+int ModelClass::GetPolygonCount() const noexcept
+{
+	return static_cast<int>(m_indices.size() / 3u);
+}
 
-	
-	if (!pMesh)
-		return false;
+int ModelClass::CountPolygons() const noexcept
+{
+	return GetPolygonCount();
+}
 
-	m_vertexCount = pMesh->mNumVertices;
-	m_faceCount = pMesh->mNumFaces;
-	m_indexCount = m_faceCount * 3;
+int ModelClass::CountMeshes() const noexcept
+{
+	return m_indices.empty() ? 0 : 1;
+}
 
-	if (m_vertexCount == 0 || m_indexCount == 0)
-		return false;
+ID3D11ShaderResourceView* ModelClass::GetTexture() const noexcept
+{
+	return m_texture.Get();
+}
 
-	m_vertices = new VertexTypeForAssimp[m_vertexCount];
+CollisionHelpers::AABB ModelClass::GetLocalAABB() const noexcept
+{
+	return m_localAABB;
+}
 
-	// Fill each vertex data
-	for (unsigned int i = 0; i < m_vertexCount; i++)
+bool ModelClass::LoadObj(const wchar_t* filename)
+{
+	using namespace DirectX;
+
+	if (filename == nullptr || *filename == L'\0')
 	{
-		// Get position
-		m_vertices[i].position.x = pMesh->mVertices[i].x;
-		m_vertices[i].position.y = pMesh->mVertices[i].y;
-		m_vertices[i].position.z = pMesh->mVertices[i].z;
-
-		// Get UV
-		if (pMesh->HasTextureCoords(0)) {
-			m_vertices[i].texture.x = pMesh->mTextureCoords[0][i].x;
-			m_vertices[i].texture.y = pMesh->mTextureCoords[0][i].y;
-		}
-		else {
-			m_vertices[i].texture.x = 0;
-			m_vertices[i].texture.y = 0;
-		}
-
-		// Get normal
-		m_vertices[i].normal.x = pMesh->mNormals[i].x;
-		m_vertices[i].normal.y = pMesh->mNormals[i].y;
-		m_vertices[i].normal.z = pMesh->mNormals[i].z;
+		return false;
 	}
 
-	m_indices = new unsigned long[m_indexCount];
-
-	for (unsigned int i = 0; i < m_faceCount; i++)
+	const std::filesystem::path path(filename);
+	std::wstring extension = path.extension().wstring();
+	std::transform(extension.begin(), extension.end(), extension.begin(), [](wchar_t value)
 	{
-		aiFace face = pMesh->mFaces[i];
-
-		// 위치 읽어오기
-		m_indices[i * 3] = face.mIndices[0];
-		m_indices[i * 3 + 1] = face.mIndices[1];
-		m_indices[i * 3 + 2] = face.mIndices[2];
+		return static_cast<wchar_t>(std::towlower(value));
+	});
+	if (extension != L".obj")
+	{
+		return false;
 	}
 
-	// Calculate local AABB from vertices
-	m_localAABB = CollisionHelpers::CalculateAABB(m_vertices, m_vertexCount);
+	std::ifstream input(path);
+	if (!input)
+	{
+		return false;
+	}
 
+	std::vector<XMFLOAT3> positions;
+	std::vector<XMFLOAT2> textureCoordinates;
+	std::vector<XMFLOAT3> normals;
+	std::vector<Vertex> vertices;
+	std::vector<std::uint32_t> indices;
+	std::vector<bool> needsGeneratedNormal;
+	std::unordered_map<ObjVertexKey, std::uint32_t, ObjVertexKeyHash> vertexLookup;
+
+	std::string line;
+	while (std::getline(input, line))
+	{
+		std::istringstream lineStream(line);
+		std::string command;
+		lineStream >> command;
+		if (command.empty() || command[0] == '#')
+		{
+			continue;
+		}
+
+		if (command == "v")
+		{
+			XMFLOAT3 position;
+			if (lineStream >> position.x >> position.y >> position.z)
+			{
+				// Match the legacy Assimp aiProcess_ConvertToLeftHanded import.
+				position.z = -position.z;
+				positions.push_back(position);
+			}
+			continue;
+		}
+
+		if (command == "vt")
+		{
+			XMFLOAT2 texture(0.0f, 0.0f);
+			if (lineStream >> texture.x)
+			{
+				lineStream >> texture.y;
+				texture.y = 1.0f - texture.y;
+				textureCoordinates.push_back(texture);
+			}
+			continue;
+		}
+
+		if (command == "vn")
+		{
+			XMFLOAT3 normal;
+			if (lineStream >> normal.x >> normal.y >> normal.z)
+			{
+				normal.z = -normal.z;
+				normals.push_back(NormalizedOrDefault(normal));
+			}
+			continue;
+		}
+
+		if (command != "f")
+		{
+			continue;
+		}
+
+		std::vector<ObjVertexKey> face;
+		std::string token;
+		bool validFace = true;
+		while (lineStream >> token)
+		{
+			if (!token.empty() && token[0] == '#')
+			{
+				break;
+			}
+
+			ObjVertexKey key;
+			if (!ParseObjVertexKey(
+				token,
+				positions.size(),
+				textureCoordinates.size(),
+				normals.size(),
+				key))
+			{
+				validFace = false;
+				break;
+			}
+			face.push_back(key);
+		}
+
+		if (!validFace || face.size() < 3u)
+		{
+			continue;
+		}
+
+		auto getVertexIndex = [&](const ObjVertexKey& key, std::uint32_t& index) -> bool
+		{
+			const auto found = vertexLookup.find(key);
+			if (found != vertexLookup.end())
+			{
+				index = found->second;
+				return true;
+			}
+
+			if (vertices.size() >= static_cast<std::size_t>((std::numeric_limits<std::uint32_t>::max)()))
+			{
+				return false;
+			}
+
+			Vertex vertex{};
+			vertex.position = positions[static_cast<std::size_t>(key.position)];
+			vertex.texture = key.texture >= 0
+				? textureCoordinates[static_cast<std::size_t>(key.texture)]
+				: XMFLOAT2(0.0f, 0.0f);
+			vertex.normal = key.normal >= 0
+				? normals[static_cast<std::size_t>(key.normal)]
+				: XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+			index = static_cast<std::uint32_t>(vertices.size());
+			vertexLookup.emplace(key, index);
+			vertices.push_back(vertex);
+			needsGeneratedNormal.push_back(key.normal < 0);
+			return true;
+		};
+
+		for (std::size_t corner = 1u; corner + 1u < face.size(); ++corner)
+		{
+			std::uint32_t triangle[3]{};
+			if (!getVertexIndex(face[0], triangle[0]) ||
+				!getVertexIndex(face[corner], triangle[1]) ||
+				!getVertexIndex(face[corner + 1u], triangle[2]))
+			{
+				return false;
+			}
+
+			// aiProcess_ConvertToLeftHanded also reverses face winding.
+			indices.push_back(triangle[0]);
+			indices.push_back(triangle[2]);
+			indices.push_back(triangle[1]);
+		}
+	}
+
+	if (vertices.empty() || indices.empty() || indices.size() % 3u != 0u ||
+		vertices.size() > static_cast<std::size_t>((std::numeric_limits<int>::max)()) ||
+		indices.size() > static_cast<std::size_t>((std::numeric_limits<int>::max)()))
+	{
+		return false;
+	}
+
+	m_vertices = std::move(vertices);
+	m_indices = std::move(indices);
+	GenerateMissingNormals(needsGeneratedNormal);
+	RecalculateLocalAABB();
 	return true;
 }
 
-void ModelClass::ReleaseModel()
+void ModelClass::GenerateMissingNormals(const std::vector<bool>& needsGeneratedNormal)
 {
-	if (m_vertices)
+	using namespace DirectX;
+
+	if (needsGeneratedNormal.size() != m_vertices.size())
 	{
-		delete[] m_vertices;
-		m_vertices = 0;
+		return;
 	}
 
-	return;
+	std::vector<XMFLOAT3> accumulated(m_vertices.size(), XMFLOAT3(0.0f, 0.0f, 0.0f));
+	for (std::size_t i = 0u; i + 2u < m_indices.size(); i += 3u)
+	{
+		const std::uint32_t index0 = m_indices[i];
+		const std::uint32_t index1 = m_indices[i + 1u];
+		const std::uint32_t index2 = m_indices[i + 2u];
+
+		const XMVECTOR position0 = XMLoadFloat3(&m_vertices[index0].position);
+		const XMVECTOR position1 = XMLoadFloat3(&m_vertices[index1].position);
+		const XMVECTOR position2 = XMLoadFloat3(&m_vertices[index2].position);
+		const XMVECTOR faceNormal = XMVector3Cross(position1 - position0, position2 - position0);
+
+		XMFLOAT3 value;
+		XMStoreFloat3(&value, faceNormal);
+		for (const std::uint32_t index : {index0, index1, index2})
+		{
+			if (needsGeneratedNormal[index])
+			{
+				accumulated[index].x += value.x;
+				accumulated[index].y += value.y;
+				accumulated[index].z += value.z;
+			}
+		}
+	}
+
+	for (std::size_t i = 0u; i < m_vertices.size(); ++i)
+	{
+		if (needsGeneratedNormal[i])
+		{
+			m_vertices[i].normal = NormalizedOrDefault(accumulated[i]);
+		}
+	}
 }
 
-bool ModelClass::LoadTexture(ID3D11Device* device, const WCHAR* filename)
+void ModelClass::RecalculateLocalAABB() noexcept
 {
-	bool result;
+	m_localAABB = m_vertices.empty()
+		? CollisionHelpers::AABB()
+		: CollisionHelpers::CalculateAABB(m_vertices.data(), static_cast<unsigned int>(m_vertices.size()));
+}
 
-
-	// Create the texture object.
-	m_Texture = new TextureClass;
-	if (!m_Texture)
+bool ModelClass::InitializeBuffers(ID3D11Device* device)
+{
+	if (device == nullptr || m_vertices.empty() || m_indices.empty())
 	{
 		return false;
 	}
 
-	// Initialize the texture object.
-	result = m_Texture->Initialize(device, filename);
-	if (!result)
+	const std::size_t vertexByteCount = m_vertices.size() * sizeof(Vertex);
+	const std::size_t indexByteCount = m_indices.size() * sizeof(std::uint32_t);
+	if (vertexByteCount > static_cast<std::size_t>((std::numeric_limits<UINT>::max)()) ||
+		indexByteCount > static_cast<std::size_t>((std::numeric_limits<UINT>::max)()))
 	{
 		return false;
 	}
 
+	D3D11_BUFFER_DESC vertexDescription{};
+	vertexDescription.Usage = D3D11_USAGE_DEFAULT;
+	vertexDescription.ByteWidth = static_cast<UINT>(vertexByteCount);
+	vertexDescription.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+
+	D3D11_SUBRESOURCE_DATA vertexData{};
+	vertexData.pSysMem = m_vertices.data();
+
+	Microsoft::WRL::ComPtr<ID3D11Buffer> vertexBuffer;
+	if (FAILED(device->CreateBuffer(&vertexDescription, &vertexData, vertexBuffer.GetAddressOf())))
+	{
+		return false;
+	}
+
+	D3D11_BUFFER_DESC indexDescription{};
+	indexDescription.Usage = D3D11_USAGE_DEFAULT;
+	indexDescription.ByteWidth = static_cast<UINT>(indexByteCount);
+	indexDescription.BindFlags = D3D11_BIND_INDEX_BUFFER;
+
+	D3D11_SUBRESOURCE_DATA indexData{};
+	indexData.pSysMem = m_indices.data();
+
+	Microsoft::WRL::ComPtr<ID3D11Buffer> indexBuffer;
+	if (FAILED(device->CreateBuffer(&indexDescription, &indexData, indexBuffer.GetAddressOf())))
+	{
+		return false;
+	}
+
+	m_vertexBuffer = std::move(vertexBuffer);
+	m_indexBuffer = std::move(indexBuffer);
 	return true;
 }
 
-void ModelClass::ReleaseTexture()
+bool ModelClass::LoadTexture(ID3D11Device* device, const wchar_t* filename) noexcept
 {
-	// Release the texture object.
-	if (m_Texture)
+	m_texture.Reset();
+	if (device == nullptr || filename == nullptr || *filename == L'\0')
 	{
-		m_Texture->Shutdown();
-		delete m_Texture;
-		m_Texture = 0;
+		return false;
 	}
-	return;
-}
 
-int ModelClass::CountPolygons()
-{
-	return m_faceCount;
-}
-
-int ModelClass::CountMeshes()
-{
-	return 1;
-}
-
-void ModelClass::SetPosition(float x, float y, float z)
-{
-	m_position = { x, y, z };
-}
-
-
-void ModelClass::GetPosition(float& x, float& y, float& z)
-{
-	x = m_position.x;
-	y = m_position.y;
-	z = m_position.z;
-}
-
-void ModelClass::SetRotationByDegrees(float x, float y, float z)
-{
-	m_rotation = { x * 0.0174532925f, y * 0.0174532925f, z * 0.0174532925f };
-}
-
-void ModelClass::GetRotation(float& x, float& y, float& z)
-{
-	x = m_rotation.x;
-	y = m_rotation.y;
-	z = m_rotation.z;
-}
-
-void ModelClass::SetScale(float x, float y, float z)
-{
-	m_scale = { x, y, z };
-}
-
-void ModelClass::GetScale(float& x, float& y, float& z)
-{
-	x = m_scale.x;
-	y = m_scale.y;
-	z = m_scale.z;
-}
-
-XMMATRIX ModelClass::GetWorldMatrix() const
-{
-	// 월드 변환 행렬 생성 (Scale * Rotation * Translation)
-	XMMATRIX scaleMatrix = XMMatrixScaling(m_scale.x, m_scale.y, m_scale.z);
-	XMMATRIX rotationMatrix = XMMatrixRotationRollPitchYaw(m_rotation.x, m_rotation.y, m_rotation.z);
-	XMMATRIX translationMatrix = XMMatrixTranslation(m_position.x, m_position.y, m_position.z);
-
-	return scaleMatrix * rotationMatrix * translationMatrix;
-}
-
-CollisionHelpers::AABB ModelClass::GetWorldAABB() const
-{
-	// Local AABB를 월드 공간으로 변환
-	return m_localAABB.Transform(GetWorldMatrix());
+	return SUCCEEDED(DirectX::CreateDDSTextureFromFile(
+		device,
+		filename,
+		nullptr,
+		m_texture.GetAddressOf()));
 }

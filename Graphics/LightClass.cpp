@@ -1,130 +1,124 @@
-#include "stdafx.h"
 #include "LightClass.h"
 
+#include <algorithm>
+#include <cmath>
 
-LightClass::LightClass()
-{
-	m_ambientColor = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
-	m_diffuseColor = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
-	m_lookAt = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	m_position = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	m_specularColor = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
-	m_specularPower = 0.0f;
-}
+using namespace DirectX;
 
-
-LightClass::LightClass(const LightClass& other)
+LightClass::LightClass() noexcept
+	: m_viewMatrix(XMMatrixIdentity()),
+	  m_projectionMatrix(XMMatrixIdentity())
 {
 }
 
-
-LightClass::~LightClass()
-{
-}
-
-
-void LightClass::SetAmbientColor(XMFLOAT4 color)
+void LightClass::SetAmbientColor(const XMFLOAT4& color) noexcept
 {
 	m_ambientColor = color;
 }
 
-
-void LightClass::SetDiffuseColor(XMFLOAT4 color)
+void LightClass::SetDiffuseColor(const XMFLOAT4& color) noexcept
 {
 	m_diffuseColor = color;
 }
 
-void LightClass::SetSpecularColor(XMFLOAT4 color)
-{
-	m_specularColor = color;
-}
-
-void LightClass::SetSpecularPower(float power)
-{
-	m_specularPower = power;
-}
-
-void LightClass::SetPosition(XMFLOAT3 position)
+void LightClass::SetPosition(const XMFLOAT3& position) noexcept
 {
 	m_position = position;
 }
 
-void LightClass::SetLookAt(XMFLOAT3 lookAt)
+void LightClass::SetLookAt(const XMFLOAT3& lookAt) noexcept
 {
 	m_lookAt = lookAt;
 }
 
+void LightClass::SetSpecularColor(const XMFLOAT4& color) noexcept
+{
+	m_specularColor = color;
+}
 
-XMFLOAT4 LightClass::GetAmbientColor()
+void LightClass::SetSpecularPower(float power) noexcept
+{
+	m_specularPower = (std::max)(power, 0.0f);
+}
+
+XMFLOAT4 LightClass::GetAmbientColor() const noexcept
 {
 	return m_ambientColor;
 }
 
-
-XMFLOAT4 LightClass::GetDiffuseColor()
+XMFLOAT4 LightClass::GetDiffuseColor() const noexcept
 {
 	return m_diffuseColor;
 }
 
-XMFLOAT3 LightClass::GetDirection()
+XMFLOAT3 LightClass::GetDirection() const noexcept
 {
-	// BUG FIX: Calculate direction from position to lookAt and normalize
-	XMVECTOR posVec = XMLoadFloat3(&m_position);
-	XMVECTOR lookAtVec = XMLoadFloat3(&m_lookAt);
-	XMVECTOR dirVec = XMVector3Normalize(lookAtVec - posVec);
-	
+	const XMVECTOR position = XMLoadFloat3(&m_position);
+	const XMVECTOR toTarget = XMLoadFloat3(&m_lookAt) - position;
+	if (XMVectorGetX(XMVector3LengthSq(toTarget)) <= 1.0e-12f)
+	{
+		return XMFLOAT3{0.0f, 0.0f, 1.0f};
+	}
+
 	XMFLOAT3 direction;
-	XMStoreFloat3(&direction, dirVec);
+	XMStoreFloat3(&direction, XMVector3Normalize(toTarget));
 	return direction;
 }
 
-XMFLOAT4 LightClass::GetSpecularColor()
+XMFLOAT4 LightClass::GetSpecularColor() const noexcept
 {
 	return m_specularColor;
 }
 
-float LightClass::GetSpecularPower()
+float LightClass::GetSpecularPower() const noexcept
 {
 	return m_specularPower;
 }
 
-XMFLOAT3 LightClass::GetPosition()
+XMFLOAT3 LightClass::GetPosition() const noexcept
 {
 	return m_position;
 }
 
-void LightClass::GenerateViewMatrix()
+void LightClass::GenerateViewMatrix() noexcept
 {
-	// 위로 향하는 벡터를 만듭니다.
-	XMFLOAT3 up = XMFLOAT3(0.0f, 1.0f, 0.0f);
+	const XMVECTOR position = XMLoadFloat3(&m_position);
+	XMVECTOR direction = XMLoadFloat3(&m_lookAt) - position;
+	if (XMVectorGetX(XMVector3LengthSq(direction)) <= 1.0e-12f)
+	{
+		direction = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+	}
+	direction = XMVector3Normalize(direction);
 
-	XMVECTOR upVector = XMLoadFloat3(&up);
-	XMVECTOR positionVector = XMLoadFloat3(&m_position);
-	XMVECTOR lookAtVector = XMLoadFloat3(&m_lookAt);
+	XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	if (std::abs(XMVectorGetX(XMVector3Dot(direction, up))) > 0.999f)
+	{
+		up = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+	}
 
-	// 세 벡터로부터 뷰 행렬을 만듭니다.
-	m_viewMatrix = XMMatrixLookAtLH(positionVector, lookAtVector, upVector);
+	m_viewMatrix = XMMatrixLookAtLH(
+		position,
+		position + direction,
+		up);
 }
 
-
-void LightClass::GenerateProjectionMatrix(float screenDepth, float screenNear)
+void LightClass::GenerateProjectionMatrix(float screenDepth, float screenNear) noexcept
 {
-	// 정사각형 조명을 위해 시야각 및 화면 비율을 설정합니다.
-	float fieldOfView = (float)XM_PI / 2.0f;
-	float screenAspect = 1.0f;
-
-	// 조명 투영 행렬을 만듭니다.
-	m_projectionMatrix = XMMatrixPerspectiveFovLH(fieldOfView, screenAspect, screenNear, screenDepth);
+	const float safeNear = (std::max)(screenNear, 0.001f);
+	const float safeDepth = (std::max)(screenDepth, safeNear + 0.001f);
+	m_projectionMatrix = XMMatrixPerspectiveFovLH(
+		XM_PIDIV2,
+		1.0f,
+		safeNear,
+		safeDepth);
 }
 
-
-void LightClass::GetViewMatrix(XMMATRIX& viewMatrix)
+void LightClass::GetViewMatrix(XMMATRIX& viewMatrix) const noexcept
 {
 	viewMatrix = m_viewMatrix;
 }
 
-
-void LightClass::GetProjectionMatrix(XMMATRIX& projectionMatrix)
+void LightClass::GetProjectionMatrix(XMMATRIX& projectionMatrix) const noexcept
 {
 	projectionMatrix = m_projectionMatrix;
 }
