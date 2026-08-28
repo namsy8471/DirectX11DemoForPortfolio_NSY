@@ -1,0 +1,18 @@
+name: Runtime Verification
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build engine modules and run deterministic replay
+        shell: pwsh
+        run: .\scripts\verify.ps1

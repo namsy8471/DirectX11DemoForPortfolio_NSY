@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files"><UniqueIdentifier>{D9965B99-1535-4384-B4CA-8B849E427A45}</UniqueIdentifier></Filter>
+    <Filter Include="Header Files"><UniqueIdentifier>{B6E1D67E-A881-4374-864F-061D9EA5F75B}</UniqueIdentifier></Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Error.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="Log.cpp"><Filter>Source Files</Filter></ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="AlignedAllocationPolicy.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="Error.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="Log.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="Result.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="ScopedResource.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="ScopeExit.h"><Filter>Header Files</Filter></ClInclude>
+  </ItemGroup>
+</Project>

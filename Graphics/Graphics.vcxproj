@@ -19,101 +19,104 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="AlignedAllocationPolicy.h" />
-    <ClInclude Include="bitmapclass.h" />
-    <ClInclude Include="cameraclass.h" />
-    <ClInclude Include="CollisionHelpers.h" />
-    <ClInclude Include="CpuClass.h" />
-    <ClInclude Include="d3dclass.h" />
-    <ClInclude Include="D3DHelpers.h" />
-    <ClInclude Include="DDSTextureLoader.h" />
-    <ClInclude Include="DepthShaderClass.h" />
-    <ClInclude Include="DxDefine.h" />
+    <ClInclude Include="Engine\Core\AlignedAllocationPolicy.h" />
+    <ClInclude Include="Engine\Core\Error.h" />
+    <ClInclude Include="Engine\Core\Log.h" />
+    <ClInclude Include="Engine\Core\Result.h" />
+    <ClInclude Include="Engine\Rendering\UI\bitmapclass.h" />
+    <ClInclude Include="Engine\Scene\cameraclass.h" />
+    <ClInclude Include="Engine\Scene\CollisionHelpers.h" />
+    <ClInclude Include="Engine\Diagnostics\CpuClass.h" />
+    <ClInclude Include="Engine\Rendering\Device\d3dclass.h" />
+    <ClInclude Include="Engine\Rendering\Device\D3DHelpers.h" />
+    <ClInclude Include="Engine\Rendering\Textures\DDSTextureLoader.h" />
+    <ClInclude Include="Engine\Rendering\Shaders\DepthShaderClass.h" />
+    <ClInclude Include="Engine\Rendering\Device\DxDefine.h" />
     <ClInclude Include="Engine\Application.h" />
     <ClInclude Include="Engine\Core\ScopedResource.h" />
     <ClInclude Include="Engine\Core\ScopeExit.h" />
     <ClInclude Include="Engine\FrameContext.h" />
     <ClInclude Include="Engine\IGame.h" />
-    <ClInclude Include="Engine\NativeWindow.h" />
+    <ClInclude Include="Engine\Platform\NativeWindow.h" />
     <ClInclude Include="Engine\Input\FirstPersonCameraController.h" />
     <ClInclude Include="Engine\Input\InputSnapshot.h" />
-    <ClInclude Include="Engine\Rendering\SoftShadowPipeline.h" />
+    <ClInclude Include="Engine\Rendering\Pipelines\SoftShadowPipeline.h" />
+    <ClInclude Include="Engine\Runtime\FixedStepScheduler.h" />
+    <ClInclude Include="Engine\Rendering\Textures\ITexture.h" />
+    <ClInclude Include="Engine\Rendering\Textures\TextureResources.h" />
     <ClInclude Include="Engine\Scene\GameObject.h" />
     <ClInclude Include="Engine\Scene\SceneDefinition.h" />
     <ClInclude Include="Engine\Scene\Transform.h" />
-    <ClInclude Include="Engine\Win32Window.h" />
-    <ClInclude Include="FireShaderClass.h" />
-    <ClInclude Include="foliageclass.h" />
-    <ClInclude Include="foliageshaderclass.h" />
-    <ClInclude Include="fontclass.h" />
-    <ClInclude Include="fontshaderclass.h" />
-    <ClInclude Include="FpsClass.h" />
-    <ClInclude Include="graphicsclass.h" />
-    <ClInclude Include="HorizontalBlurShaderClass.h" />
-    <ClInclude Include="inputclass.h" />
-    <ClInclude Include="LightClass.h" />
-    <ClInclude Include="lightshaderclass.h" />
-    <ClInclude Include="modelclass.h" />
-    <ClInclude Include="ModelClassForNoiseFilter.h" />
-    <ClInclude Include="OrthoWindowClass.h" />
-    <ClInclude Include="RenderTextureClass.h" />
-    <ClInclude Include="ShadowShaderClass.h" />
-    <ClInclude Include="SkyDomeClass.h" />
-    <ClInclude Include="SkyDomeShaderClass.h" />
-    <ClInclude Include="SoftShadowShaderClass.h" />
-    <ClInclude Include="SoundClass.h" />
+    <ClInclude Include="Engine\Platform\Win32Window.h" />
+    <ClInclude Include="Engine\Rendering\Shaders\FireShaderClass.h" />
+    <ClInclude Include="Engine\Rendering\Geometry\foliageclass.h" />
+    <ClInclude Include="Engine\Rendering\Shaders\foliageshaderclass.h" />
+    <ClInclude Include="Engine\Rendering\UI\fontclass.h" />
+    <ClInclude Include="Engine\Rendering\Shaders\fontshaderclass.h" />
+    <ClInclude Include="Engine\Diagnostics\FpsClass.h" />
+    <ClInclude Include="Game\graphicsclass.h" />
+    <ClInclude Include="Engine\Rendering\Shaders\HorizontalBlurShaderClass.h" />
+    <ClInclude Include="Engine\Input\inputclass.h" />
+    <ClInclude Include="Engine\Scene\LightClass.h" />
+    <ClInclude Include="Engine\Rendering\Shaders\lightshaderclass.h" />
+    <ClInclude Include="Engine\Rendering\Geometry\modelclass.h" />
+    <ClInclude Include="Engine\Rendering\Geometry\ModelClassForNoiseFilter.h" />
+    <ClInclude Include="Engine\Rendering\Geometry\OrthoWindowClass.h" />
+    <ClInclude Include="Engine\Rendering\Shaders\ShadowShaderClass.h" />
+    <ClInclude Include="Engine\Rendering\Geometry\SkyDomeClass.h" />
+    <ClInclude Include="Engine\Rendering\Shaders\SkyDomeShaderClass.h" />
+    <ClInclude Include="Engine\Rendering\Shaders\SoftShadowShaderClass.h" />
+    <ClInclude Include="Engine\Audio\SoundClass.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
-    <ClInclude Include="TerrainClass.h" />
-    <ClInclude Include="TerrainShaderClass.h" />
-    <ClInclude Include="textclass.h" />
-    <ClInclude Include="textureclass.h" />
-    <ClInclude Include="textureshaderclass.h" />
-    <ClInclude Include="TimerClass.h" />
-    <ClInclude Include="VerticalBlurShaderClass.h" />
+    <ClInclude Include="Engine\Rendering\Geometry\TerrainClass.h" />
+    <ClInclude Include="Engine\Rendering\Shaders\TerrainShaderClass.h" />
+    <ClInclude Include="Engine\Rendering\UI\textclass.h" />
+    <ClInclude Include="Engine\Rendering\Shaders\textureshaderclass.h" />
+    <ClInclude Include="Engine\Diagnostics\TimerClass.h" />
+    <ClInclude Include="Engine\Rendering\Shaders\VerticalBlurShaderClass.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="bitmapclass.cpp" />
-    <ClCompile Include="cameraclass.cpp" />
-    <ClCompile Include="CpuClass.cpp" />
-    <ClCompile Include="d3dclass.cpp" />
-    <ClCompile Include="DDSTextureLoader.cpp" />
-    <ClCompile Include="DepthShaderClass.cpp" />
+    <ClCompile Include="Engine\Rendering\UI\bitmapclass.cpp" />
+    <ClCompile Include="Engine\Scene\cameraclass.cpp" />
+    <ClCompile Include="Engine\Diagnostics\CpuClass.cpp" />
+    <ClCompile Include="Engine\Rendering\Device\d3dclass.cpp" />
+    <ClCompile Include="Engine\Rendering\Textures\DDSTextureLoader.cpp" />
+    <ClCompile Include="Engine\Rendering\Shaders\DepthShaderClass.cpp" />
     <ClCompile Include="Engine\Application.cpp" />
     <ClCompile Include="Engine\Input\FirstPersonCameraController.cpp" />
-    <ClCompile Include="Engine\Rendering\SoftShadowPipeline.cpp" />
+    <ClCompile Include="Engine\Rendering\Pipelines\SoftShadowPipeline.cpp" />
+    <ClCompile Include="Engine\Rendering\Textures\TextureResources.cpp" />
     <ClCompile Include="Engine\Scene\GameObject.cpp" />
     <ClCompile Include="Engine\Scene\SceneDefinition.cpp" />
-    <ClCompile Include="Engine\Win32Window.cpp" />
-    <ClCompile Include="FireShaderClass.cpp" />
-    <ClCompile Include="foliageclass.cpp" />
-    <ClCompile Include="foliageshaderclass.cpp" />
-    <ClCompile Include="fontclass.cpp" />
-    <ClCompile Include="fontshaderclass.cpp" />
-    <ClCompile Include="FpsClass.cpp" />
-    <ClCompile Include="graphicsclass.cpp" />
-    <ClCompile Include="HorizontalBlurShaderClass.cpp" />
-    <ClCompile Include="inputclass.cpp" />
-    <ClCompile Include="LightClass.cpp" />
-    <ClCompile Include="lightshaderclass.cpp" />
+    <ClCompile Include="Engine\Platform\Win32Window.cpp" />
+    <ClCompile Include="Engine\Rendering\Shaders\FireShaderClass.cpp" />
+    <ClCompile Include="Engine\Rendering\Geometry\foliageclass.cpp" />
+    <ClCompile Include="Engine\Rendering\Shaders\foliageshaderclass.cpp" />
+    <ClCompile Include="Engine\Rendering\UI\fontclass.cpp" />
+    <ClCompile Include="Engine\Rendering\Shaders\fontshaderclass.cpp" />
+    <ClCompile Include="Engine\Diagnostics\FpsClass.cpp" />
+    <ClCompile Include="Game\graphicsclass.cpp" />
+    <ClCompile Include="Engine\Rendering\Shaders\HorizontalBlurShaderClass.cpp" />
+    <ClCompile Include="Engine\Input\inputclass.cpp" />
+    <ClCompile Include="Engine\Scene\LightClass.cpp" />
+    <ClCompile Include="Engine\Rendering\Shaders\lightshaderclass.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="modelclass.cpp" />
-    <ClCompile Include="ModelClassForNoiseFilter.cpp" />
-    <ClCompile Include="OrthoWindowClass.cpp" />
-    <ClCompile Include="RenderTextureClass.cpp" />
-    <ClCompile Include="ShadowShaderClass.cpp" />
-    <ClCompile Include="SkyDomeClass.cpp" />
-    <ClCompile Include="SkyDomeShaderClass.cpp" />
-    <ClCompile Include="SoftShadowShaderClass.cpp" />
-    <ClCompile Include="SoundClass.cpp" />
+    <ClCompile Include="Engine\Rendering\Geometry\modelclass.cpp" />
+    <ClCompile Include="Engine\Rendering\Geometry\ModelClassForNoiseFilter.cpp" />
+    <ClCompile Include="Engine\Rendering\Geometry\OrthoWindowClass.cpp" />
+    <ClCompile Include="Engine\Rendering\Shaders\ShadowShaderClass.cpp" />
+    <ClCompile Include="Engine\Rendering\Geometry\SkyDomeClass.cpp" />
+    <ClCompile Include="Engine\Rendering\Shaders\SkyDomeShaderClass.cpp" />
+    <ClCompile Include="Engine\Rendering\Shaders\SoftShadowShaderClass.cpp" />
+    <ClCompile Include="Engine\Audio\SoundClass.cpp" />
     <ClCompile Include="stdafx.cpp" />
-    <ClCompile Include="TerrainClass.cpp" />
-    <ClCompile Include="TerrainShaderClass.cpp" />
-    <ClCompile Include="textclass.cpp" />
-    <ClCompile Include="textureclass.cpp" />
-    <ClCompile Include="textureshaderclass.cpp" />
-    <ClCompile Include="TimerClass.cpp" />
-    <ClCompile Include="VerticalBlurShaderClass.cpp" />
+    <ClCompile Include="Engine\Rendering\Geometry\TerrainClass.cpp" />
+    <ClCompile Include="Engine\Rendering\Shaders\TerrainShaderClass.cpp" />
+    <ClCompile Include="Engine\Rendering\UI\textclass.cpp" />
+    <ClCompile Include="Engine\Rendering\Shaders\textureshaderclass.cpp" />
+    <ClCompile Include="Engine\Diagnostics\TimerClass.cpp" />
+    <ClCompile Include="Engine\Rendering\Shaders\VerticalBlurShaderClass.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="data\color.ps" />
@@ -291,6 +294,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Engine\Rendering\Device;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <WarningLevel>Level4</WarningLevel>
       <TreatWarningAsError>true</TreatWarningAsError>
       <SDLCheck>true</SDLCheck>
@@ -310,6 +314,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Engine\Rendering\Device;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <WarningLevel>Level4</WarningLevel>
       <TreatWarningAsError>true</TreatWarningAsError>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -334,6 +339,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Engine\Rendering\Device;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <WarningLevel>Level4</WarningLevel>
       <TreatWarningAsError>true</TreatWarningAsError>
       <SDLCheck>true</SDLCheck>
@@ -354,6 +360,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Engine\Rendering\Device;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <WarningLevel>Level4</WarningLevel>
       <TreatWarningAsError>true</TreatWarningAsError>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -376,6 +383,14 @@
       <ShaderModel>5.0</ShaderModel>
     </FxCompile>
   </ItemDefinitionGroup>
+  <ItemGroup>
+    <ProjectReference Include="Engine\Core\EngineCore.vcxproj">
+      <Project>{C1384D3B-7A8F-45D5-98E4-3286B5F23D10}</Project>
+    </ProjectReference>
+    <ProjectReference Include="Engine\Runtime\EngineRuntime.vcxproj">
+      <Project>{8D6712A9-75B0-4F19-A218-DBCF6159A9AC}</Project>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

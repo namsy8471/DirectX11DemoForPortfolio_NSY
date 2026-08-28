@@ -1,15 +1,22 @@
-#include "Application.h"
+#include "Engine/Application.h"
 
-#include <algorithm>
+#include "Engine/Core/Error.h"
+#include "Engine/Core/Log.h"
+
 #include <cstdlib>
+#include <exception>
+#include <optional>
+#include <string>
 #include <utility>
 
 namespace Engine
 {
 	Application::Application(
 		std::unique_ptr<IGame> game,
-		WindowConfig windowConfig)
+		WindowConfig windowConfig,
+		Runtime::FixedStepConfig fixedStepConfig)
 		: m_windowConfig(std::move(windowConfig)),
+		  m_fixedStepConfig(fixedStepConfig),
 		  m_game(std::move(game))
 	{
 	}
@@ -19,44 +26,71 @@ namespace Engine
 		Shutdown();
 	}
 
-	bool Application::Initialize()
+	Result<void> Application::Initialize()
 	{
 		if (m_lifecycle == Lifecycle::Initialized ||
 			m_lifecycle == Lifecycle::Running)
 		{
-			return true;
+			return Result<void>::Success();
 		}
 
 		if (m_lifecycle != Lifecycle::Constructed || !m_game)
 		{
-			return false;
+			return Result<void>::Failure(ENGINE_ERROR(
+				ErrorCode::InvariantViolation,
+				"Application",
+				"Initialize was called from an invalid lifecycle state or without a game."));
 		}
 
 		m_lifecycle = Lifecycle::Initializing;
+		const Result<void> schedulerConfigured =
+			m_fixedStepScheduler.Configure(m_fixedStepConfig);
+		if (!schedulerConfigured)
+		{
+			m_lifecycle = Lifecycle::Stopped;
+			return Result<void>::Failure(schedulerConfigured.GetError());
+		}
 
 		if (!m_window.Create(m_windowConfig, {}))
 		{
 			m_lifecycle = Lifecycle::Stopped;
-			return false;
+			return Result<void>::Failure(ENGINE_ERROR(
+				ErrorCode::PlatformFailure,
+				"Win32Window",
+				"Could not create the native application window."));
 		}
 
 		// Shutdown is required even when Initialize returns false because a game
 		// may have acquired only a prefix of its resources.
 		m_gameNeedsShutdown = true;
-		bool gameInitialized = false;
+		Result<void> gameInitialized = Result<void>::Failure(ENGINE_ERROR(
+			ErrorCode::InitializationFailed,
+			"Game",
+			"Game initialization did not complete."));
 		try
 		{
 			gameInitialized = m_game->Initialize(m_window.GetNativeWindow());
 		}
+		catch (const std::exception& exception)
+		{
+			gameInitialized = Result<void>::Failure(ENGINE_ERROR(
+				ErrorCode::UnexpectedFailure,
+				"Game",
+				std::string("Game initialization threw an exception: ") + exception.what()));
+		}
 		catch (...)
 		{
-			gameInitialized = false;
+			gameInitialized = Result<void>::Failure(ENGINE_ERROR(
+				ErrorCode::UnexpectedFailure,
+				"Game",
+				"Game initialization threw an unknown exception."));
 		}
 
 		if (!gameInitialized)
 		{
+			const Error error = gameInitialized.GetError();
 			Shutdown();
-			return false;
+			return Result<void>::Failure(error);
 		}
 
 		// Start telemetry only after resource loading. Otherwise the first frame
@@ -64,7 +98,10 @@ namespace Engine
 		if (!m_timer.Initialize())
 		{
 			Shutdown();
-			return false;
+			return Result<void>::Failure(ENGINE_ERROR(
+				ErrorCode::InitializationFailed,
+				"Timer",
+				"Could not initialize the runtime timer."));
 		}
 		m_fps.Initialize();
 		// CPU telemetry is optional; the game loop remains usable when PDH is
@@ -72,28 +109,40 @@ namespace Engine
 		m_cpuNeedsShutdown = m_cpu.Initialize();
 
 		m_frameIndex = 0;
-		m_elapsedTimeSeconds = 0.0;
+		m_elapsedRealTimeSeconds = 0.0;
 		m_lifecycle = Lifecycle::Initialized;
-		return true;
+		Log::Write(LogLevel::Info, "Application", "Runtime initialized successfully.");
+		return Result<void>::Success();
 	}
 
-	int Application::Run()
+	Result<int> Application::Run()
 	{
-		if (m_lifecycle == Lifecycle::Constructed && !Initialize())
+		if (m_lifecycle == Lifecycle::Constructed)
 		{
-			return EXIT_FAILURE;
+			const Result<void> initialized = Initialize();
+			if (!initialized)
+			{
+				return Result<int>::Failure(initialized.GetError());
+			}
 		}
 
 		if (m_lifecycle != Lifecycle::Initialized)
 		{
-			return EXIT_FAILURE;
+			return Result<int>::Failure(ENGINE_ERROR(
+				ErrorCode::InvariantViolation,
+				"Application",
+				"Run was called while the application was not initialized."));
 		}
 
 		m_lifecycle = Lifecycle::Running;
 		int exitCode = EXIT_SUCCESS;
 		bool wasSuspended = false;
+		bool exitRequested = false;
+		std::optional<Error> runtimeError;
 		m_timer.Reset();
 		m_fps.Initialize();
+		m_fixedStepScheduler.Reset();
+		Log::Write(LogLevel::Info, "Application", "Entering the fixed-step runtime loop.");
 
 		while (m_window.PumpMessages(exitCode))
 		{
@@ -108,6 +157,7 @@ namespace Engine
 			{
 				m_timer.Reset();
 				m_fps.Initialize();
+				m_fixedStepScheduler.DiscardPendingTime();
 				wasSuspended = false;
 			}
 
@@ -115,45 +165,93 @@ namespace Engine
 			m_fps.Frame();
 			m_cpu.Frame();
 
-			// Clamp long stalls (debug breaks, window dragging, device hiccups) so a
-			// single frame cannot teleport gameplay state or destabilize simulation.
-			const float deltaMilliseconds = std::clamp(
-				m_timer.GetTime(),
-				0.0f,
-				100.0f);
-			const float deltaSeconds = deltaMilliseconds * 0.001f;
-			m_elapsedTimeSeconds += static_cast<double>(deltaSeconds);
+			const double measuredFrameDeltaSeconds =
+				static_cast<double>(m_timer.GetTime()) * 0.001;
+			const Runtime::FrameSchedule schedule =
+				m_fixedStepScheduler.Advance(measuredFrameDeltaSeconds);
+			m_elapsedRealTimeSeconds += schedule.acceptedFrameDeltaSeconds;
 
-			FrameContext frame;
-			frame.frameIndex = m_frameIndex;
-			frame.deltaMilliseconds = deltaMilliseconds;
-			frame.deltaTimeSeconds = deltaSeconds;
-			frame.elapsedTimeSeconds = m_elapsedTimeSeconds;
-			frame.fps = m_fps.GetFps();
-			frame.cpuPercentage = m_cpu.GetCpuPercentage();
+			if (schedule.droppedTimeSeconds > 0.0)
+			{
+				Log::Write(
+					LogLevel::Warning,
+					"FixedStepScheduler",
+					"Dropped " + std::to_string(schedule.droppedTimeSeconds) +
+					" seconds of simulation backlog.");
+			}
 
 			try
 			{
-				const UpdateResult updateResult = m_game->Update(frame);
-				if (updateResult == UpdateResult::ExitRequested)
+				for (std::uint32_t updateIndex = 0;
+					updateIndex < schedule.updateCount;
+					++updateIndex)
 				{
-					break;
+					const std::uint64_t tickIndex =
+						schedule.firstTickIndex + updateIndex;
+					FixedFrameContext fixedFrame;
+					fixedFrame.tickIndex = tickIndex;
+					fixedFrame.deltaMilliseconds = static_cast<float>(
+						schedule.fixedDeltaSeconds * 1000.0);
+					fixedFrame.fixedDeltaSeconds = static_cast<float>(
+						schedule.fixedDeltaSeconds);
+					fixedFrame.simulationTimeSeconds =
+						static_cast<double>(tickIndex + 1) * schedule.fixedDeltaSeconds;
+					fixedFrame.fps = m_fps.GetFps();
+					fixedFrame.cpuPercentage = m_cpu.GetCpuPercentage();
+
+					const Result<UpdateResult> updateResult =
+						m_game->FixedUpdate(fixedFrame);
+					if (!updateResult)
+					{
+						runtimeError = updateResult.GetError();
+						break;
+					}
+					if (updateResult.Value() == UpdateResult::ExitRequested)
+					{
+						exitRequested = true;
+						break;
+					}
 				}
-				if (updateResult == UpdateResult::Failure)
+
+				if (runtimeError.has_value() || exitRequested)
 				{
-					exitCode = EXIT_FAILURE;
 					break;
 				}
 
-				if (!m_game->Render(frame))
+				RenderFrameContext renderFrame;
+				renderFrame.frameIndex = m_frameIndex;
+				renderFrame.completedFixedTickCount = schedule.completedTickCount;
+				renderFrame.frameDeltaMilliseconds = static_cast<float>(
+					schedule.acceptedFrameDeltaSeconds * 1000.0);
+				renderFrame.frameDeltaSeconds = static_cast<float>(
+					schedule.acceptedFrameDeltaSeconds);
+				renderFrame.elapsedRealTimeSeconds = m_elapsedRealTimeSeconds;
+				renderFrame.interpolationAlpha = static_cast<float>(
+					schedule.interpolationAlpha);
+				renderFrame.fps = m_fps.GetFps();
+				renderFrame.cpuPercentage = m_cpu.GetCpuPercentage();
+
+				const Result<void> rendered = m_game->Render(renderFrame);
+				if (!rendered)
 				{
-					exitCode = EXIT_FAILURE;
+					runtimeError = rendered.GetError();
 					break;
 				}
 			}
+			catch (const std::exception& exception)
+			{
+				runtimeError = ENGINE_ERROR(
+					ErrorCode::UnexpectedFailure,
+					"Application",
+					std::string("Runtime loop threw an exception: ") + exception.what());
+				break;
+			}
 			catch (...)
 			{
-				exitCode = EXIT_FAILURE;
+				runtimeError = ENGINE_ERROR(
+					ErrorCode::UnexpectedFailure,
+					"Application",
+					"Runtime loop threw an unknown exception.");
 				break;
 			}
 
@@ -162,7 +260,21 @@ namespace Engine
 
 		m_lifecycle = Lifecycle::Initialized;
 		Shutdown();
-		return exitCode;
+
+		if (runtimeError.has_value())
+		{
+			Log::Write(LogLevel::Error, *runtimeError);
+			return Result<int>::Failure(*runtimeError);
+		}
+
+		Log::Write(
+			LogLevel::Info,
+			"Application",
+			"Runtime stopped after " + std::to_string(m_frameIndex) +
+			" render frames and " +
+			std::to_string(m_fixedStepScheduler.CompletedTickCount()) +
+			" fixed ticks.");
+		return Result<int>::Success(exitCode);
 	}
 
 	void Application::Shutdown() noexcept

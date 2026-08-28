@@ -1,12 +1,14 @@
 #pragma once
 
-#include "FrameContext.h"
-#include "IGame.h"
-#include "Win32Window.h"
+#include "Engine/Core/Result.h"
+#include "Engine/FrameContext.h"
+#include "Engine/IGame.h"
+#include "Engine/Platform/Win32Window.h"
+#include "Engine/Runtime/FixedStepScheduler.h"
 
-#include "../CpuClass.h"
-#include "../FpsClass.h"
-#include "../TimerClass.h"
+#include "Engine/Diagnostics/CpuClass.h"
+#include "Engine/Diagnostics/FpsClass.h"
+#include "Engine/Diagnostics/TimerClass.h"
 
 #include <cstdint>
 #include <memory>
@@ -18,7 +20,8 @@ namespace Engine
 	public:
 		explicit Application(
 			std::unique_ptr<IGame> game,
-			WindowConfig windowConfig = {});
+			WindowConfig windowConfig = {},
+			Runtime::FixedStepConfig fixedStepConfig = {});
 		~Application();
 
 		Application(const Application&) = delete;
@@ -26,8 +29,8 @@ namespace Engine
 		Application(Application&&) = delete;
 		Application& operator=(Application&&) = delete;
 
-		bool Initialize();
-		int Run();
+		Result<void> Initialize();
+		Result<int> Run();
 		void Shutdown() noexcept;
 
 		void RequestExit(int exitCode = 0) noexcept;
@@ -45,6 +48,8 @@ namespace Engine
 		};
 
 		WindowConfig m_windowConfig;
+		Runtime::FixedStepConfig m_fixedStepConfig;
+		Runtime::FixedStepScheduler m_fixedStepScheduler;
 		Win32Window m_window;
 		std::unique_ptr<IGame> m_game;
 		::FpsClass m_fps;
@@ -55,6 +60,6 @@ namespace Engine
 		bool m_gameNeedsShutdown = false;
 		bool m_cpuNeedsShutdown = false;
 		std::uint64_t m_frameIndex = 0;
-		double m_elapsedTimeSeconds = 0.0;
+		double m_elapsedRealTimeSeconds = 0.0;
 	};
 }

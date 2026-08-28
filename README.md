@@ -34,22 +34,53 @@ I wanted to work directly with **DirectX 11**, the core API behind game engines,
 
 ---
 
+## 결정론적 런타임 플랫폼
+
+그래픽 데모의 프레임 루프를 테스트 가능한 런타임으로 분리했습니다. 솔루션은 이제 실행 파일 하나가 아니라 `EngineCore`, `EngineRuntime`, `PortfolioEngine`, `RuntimeTests` 네 개의 빌드 타깃으로 구성됩니다.
+
+| 타깃 | 책임 |
+|---|---|
+| `EngineCore.lib` | 플랫폼 독립 `Error`, `Result<T>`, 구조화 로그와 소유권 유틸리티 |
+| `EngineRuntime.lib` | 60 Hz fixed-step 스케줄러, simulation/render frame 계약 |
+| `PortfolioEngine.exe` | Win32 호스트, D3D11 렌더러와 포트폴리오 게임 |
+| `PortfolioRuntimeTests.exe` | 창·GPU·오디오·에셋 없이 실행되는 headless 런타임 검증 |
+
+실제 시간은 최대 100 ms로 제한한 뒤 누적하고, 프레임당 최대 8회의 고정 tick을 실행합니다. 남은 시간은 렌더 보간값으로 제공하며 과도한 backlog는 버리고 그 양을 로그에 기록합니다. 따라서 렌더 FPS가 달라져도 게임 시뮬레이션 속도는 바뀌지 않습니다.
+
+게임과 애플리케이션 경계의 `bool` 실패는 오류 코드, 하위 시스템, 메시지와 발생 위치를 보존하는 `Result<T>`로 교체했습니다. 신규 Core/Runtime/Application 경로는 오류를 기록하고 상위로 전달하며, `GraphicsClass`의 15개 직접 팝업은 제거했습니다. 아직 남은 레거시 셰이더 컴파일 팝업은 다음 렌더러 오류 전환 범위입니다.
+
+Headless 검증은 동일한 입력을 한 tick씩 실행한 경우와 다섯 tick씩 묶은 경우를 비교합니다. 두 실행 모두 10,000 tick 후 `0x45309AA8C1381D56`의 동일한 64-bit world hash를 생성하며, 총 9개 검사가 통과합니다.
+
+```powershell
+.\scripts\verify.ps1
+.\scripts\verify.ps1 -AllArchitectures
+```
+
+자세한 설계와 검증 계약은 [`docs/runtime-platform.md`](docs/runtime-platform.md)에 정리했습니다.
+
+---
+
 ## 레거시 데모 리팩터링: 문제에서 검증까지
 
 초기 버전은 그래픽 기능을 시연할 수 있었지만, `SystemClass`와 `GraphicsClass`가 Win32 실행 흐름, 입력, 씬 구성, 게임 규칙, 렌더 패스와 자원 해제를 함께 담당했습니다. 기능 하나를 수정해도 애플리케이션 수명주기와 렌더 상태 전체를 함께 확인해야 했고, 부분 초기화 실패나 종료 순서에 따라 자원 누수·중복 해제가 발생하기 쉬운 구조였습니다.
 
-### 문제와 근본 원인
+### 변경 사항: 문제 → 변경 방식 → 해결 결과
 
-| 관찰된 문제 | 근본 원인 | 적용한 해결 |
-|---|---|---|
-| 창, 메인 루프와 데모 구현이 서로 직접 의존 | 플랫폼과 게임 사이의 수명주기 계약이 없고 전역 Win32 콜백 상태를 사용 | `Application`–`Win32Window`–`IGame` 경계를 만들고 `NativeWindow`, `FrameContext`, `UpdateResult`로 플랫폼 경계를 명시 |
-| COM raw pointer, `new/delete`, `Release()`가 여러 클래스에 분산 | 누가 자원을 소유하며 부분 초기화 실패 때 누가 정리하는지가 타입에 표현되지 않음 | COM은 `ComPtr`, 단독 객체는 `unique_ptr`, CPU 배열은 `vector`, 레거시 `Shutdown()` 객체는 `ScopedResource`로 소유권 통일 |
-| 입력 읽기, 카메라 이동과 렌더 시점이 결합 | 장치 상태와 게임 의도를 구분하는 프레임 단위 데이터 계약이 없음 | `InputSnapshot`과 `FirstPersonCameraController`를 도입하고 카메라 갱신을 Update 단계로 이동 |
-| 6단계 소프트 섀도우가 거대한 렌더 함수의 상태를 공유 | 렌더 패스별 책임, 자원 소유권과 상태 복구 경계가 없음 | 섀도 맵→흑백→다운샘플→가로 블러→세로 블러→업샘플을 `SoftShadowPipeline`으로 캡슐화 |
-| 씬 경로와 변환이 `GraphicsClass` 초기화 코드에 하드코딩 | 씬 데이터, 모델 자원과 게임 오브젝트의 책임이 섞여 있음 | `SceneDefinition`, `GameObject`, `Transform`으로 설정·소유권·활성 상태·월드 변환을 분리 |
-| Assimp/ImGui 및 빌드 설정 편차 때문에 clean build 재현이 어려움 | 사용 범위보다 큰 외부 의존성과 구성별로 달라진 컴파일/HLSL 설정 | 필요한 OBJ 기능만 C++17로 구현하고 미사용 통합을 제거한 뒤 네 구성 모두 `/W4 /WX`로 통일 |
-| 리팩터링 후 곰·칠면조·말이 상자로 표시 | 기존 `.gitignore`의 `*.obj`가 컴파일 산출물과 Wavefront 모델을 함께 제외해 동물 OBJ가 Git에 한 번도 포함되지 않았고, 리팩터링 중 추가한 큐브 fallback이 이 누락을 오류 대신 시각 회귀로 숨김 | 기존 데모 백업에서 OBJ 4개를 복구하고 `Graphics/data/*.obj`를 ignore 대상에서 제외. 기존 Assimp의 Z축·UV Y·winding 반전을 재현하고, 필수 메시/텍스처가 없으면 상자로 대체하지 않고 초기화 실패 처리 |
-| 비정사각 지형과 음수 월드 좌표, 장시간 프레임 정지에서 잘못된 상태 가능 | 배열 stride, 좌표 반올림과 delta time에 대한 암묵적 가정 | 높이 맵 stride와 `floor` 기반 좌표 계산을 수정하고 delta clamp, 최소화 복귀 reset, DirectInput 재획득 경로를 추가 |
+| 바뀐 부분 | 기존 문제와 원인 | 바꾼 방식 | 해결된 점 | 정량적 성과 또는 검증 |
+|---|---|---|---|---|
+| **빌드 모듈 경계** | 실행 파일 하나가 Core, Win32, D3D11, 게임과 테스트 코드를 모두 컴파일해 의존성 방향을 강제할 수 없었음 | 솔루션을 `EngineCore.lib`, `EngineRuntime.lib`, `PortfolioEngine.exe`, `PortfolioRuntimeTests.exe`로 분리하고 프로젝트 참조 방향을 고정 | Core/Runtime을 그래픽 장치 없이 독립적으로 빌드·테스트할 수 있음 | 빌드 타깃 **1개 → 4개**, Core/Runtime의 Win32·DirectX include **0개** |
+| **프레임 런타임** | 가변 delta로 게임 상태를 갱신해 렌더 FPS와 시뮬레이션 속도가 결합되고 장시간 정지 시 상태가 크게 도약할 수 있었음 | 60 Hz `FixedStepScheduler`, 최대 100 ms frame clamp, 프레임당 최대 8 tick, render interpolation 계약을 도입 | 렌더 빈도와 게임 진행 속도가 분리되고 과도한 backlog가 제한·계측됨 | 서로 다른 render-frame 분할에서 10,000 tick 후 동일 hash `0x45309AA8C1381D56`; 실제 스모크에서 **8,690 render frame / 126 fixed tick** |
+| **오류 전달과 로그** | `bool` 실패와 `MessageBox`만으로는 어느 계층·파일·호출에서 실패했는지 보존할 수 없었음 | 오류 코드·하위 시스템·메시지·소스 위치를 가진 `Error`와 `Result<T>`를 만들고 timestamp·thread·category 로그를 추가 | Application/Game 경계에서 실패 원인이 손실 없이 Win32 런처까지 전달되고 실행 로그가 남음 | `GraphicsClass` 직접 오류 팝업 **15곳 → 0곳**, 로그 필드 **5종** 기록 |
+| **애플리케이션·플랫폼 경계** | `SystemClass`와 전역 Win32 콜백이 창, 메시지 펌프, 게임 수명주기를 함께 관리 | `Application`–`Win32Window`–`IGame`과 `NativeWindow`, fixed/render frame context를 도입 | Win32 메시지 처리와 게임 규칙의 수명주기·실패 경계가 명시됨 | `SystemClass` **2파일 / 431 LOC → 제거** |
+| **자원 소유권** | COM raw pointer, `new/delete`, `Release()`가 여러 클래스에 분산되어 부분 초기화 실패와 종료 순서에 취약 | COM은 `ComPtr`, 단독 객체는 `unique_ptr`, CPU 배열은 `vector`, 레거시 종료 객체는 `ScopedResource`로 통일 | 소유자가 타입으로 표현되고 중간 실패에도 소멸자가 정리 | 프로젝트 코드 수동 ownership site **214곳 → 0곳** |
+| **입력과 시뮬레이션 데이터** | DirectInput 읽기, 카메라 이동과 렌더 시점이 결합되어 장치 상태와 게임 의도를 구분하기 어려웠음 | `InputSnapshot`과 `FirstPersonCameraController`를 도입하고 입력·카메라 갱신을 fixed update에 배치 | 프레임 단위 입력 계약이 생기고 카메라 동작을 렌더 코드 밖에서 변경 가능 | 최소화 복귀 timer reset, DirectInput 재획득 경로와 delta 상한 검증 |
+| **소프트 섀도우 파이프라인** | 6단계 패스가 거대한 렌더 함수의 상태와 임시 자원을 공유 | 섀도 맵→흑백→다운샘플→가로 블러→세로 블러→업샘플을 `SoftShadowPipeline`으로 캡슐화 | 패스별 자원 소유권과 렌더 상태 복구 범위가 한 객체로 제한됨 | 전용 파이프라인 **6개 패스**, 구현 **544 LOC**로 분리 |
+| **텍스처 자원 API** | DDS 텍스처와 렌더 텍스처의 생성·조회 API가 달라 소비자가 구체 구현과 `ComPtr`를 알아야 했음 | `ITexture`/`IRenderTexture`, `DdsTexture`/`RenderTargetTexture`, `TexturePtr`와 `MakeTexture`를 도입 | 셰이더는 공통 SRV 계약만 사용하고 생성 실패 시 미완성 자원이 노출되지 않음 | 구체 타입/직접 `ComPtr` 자원 **14개 → 인터페이스 핸들 14개** |
+| **물리 디렉터리** | 74개 C++ 파일이 `Graphics/` 루트에 섞여 include와 책임 위치가 일치하지 않았음 | `Core`, `Runtime`, `Platform`, `Scene`, `Input`, `Audio`, `Diagnostics`, `Rendering/*`, `Game`으로 이동하고 VS 필터 동기화 | 파일 경로만으로 계층과 책임을 판단할 수 있고 탐색 범위가 축소됨 | 루트 C++ **74개 → 4개(-94.6%)**, 프로젝트/필터 **122 / 122 일치** |
+| **씬·모델 데이터** | 씬 경로·변환이 초기화 코드에 하드코딩됐고 누락 모델을 큐브 fallback이 숨겨 곰·칠면조·말이 상자로 보였음 | `SceneDefinition`, `GameObject`, `Transform`을 분리하고 OBJ ignore 예외·좌표계 변환을 복구하며 필수 에셋 누락은 실패 처리 | 씬 데이터와 런타임 객체가 분리되고 잘못된 대체 모델 대신 원인이 드러남 | OBJ **4개 / 17,405,008 bytes**, 총 **230,504 triangles** 복구 |
+| **불꽃 알파 마스크** | `alpha01.dds`의 A 채널은 전부 255인데 셰이더가 `alphaColor.a`를 사용해 Title 불꽃이 사각형으로 렌더링됨 | RGB에 저장된 grayscale mask를 사용하도록 `fireColor.a *= alphaColor.r`로 수정 | 기존 단일 alpha blend state를 유지하면서 불꽃 외곽 투명도가 복원됨 | 마스크 A 고유값 **1개(255)**에서 RGB **256단계**를 실제 투명도에 사용 |
+| **빌드·회귀 자동화** | 구성별 설정 차이와 외부 통합 때문에 clean build와 실행 결과 재현이 어려웠음 | 미사용 Assimp/ImGui 통합을 제거하고 네 구성 `/W4 /WX`, PowerShell 검증 스크립트와 GitHub Actions를 추가 | 로컬과 CI가 같은 빌드·headless replay 절차를 실행 | 외부 통합 **98파일 / 1,218,891 bytes 제거**, 빌드 **4/4**, 런타임 검사 **36/36 통과** |
+| **지형·좌표 안정성** | 비정사각 높이 맵 stride와 음수 좌표 반올림이 잘못된 셀을 참조 | 높이 맵 stride와 `floor` 기반 월드 좌표 계산을 적용 | 비정사각 지형과 음수 좌표에서도 올바른 높이 샘플을 사용 | 네 빌드 구성에서 `/W4 /WX` 및 런타임 스모크 검증 통과 |
 
 ### 정량 결과
 
@@ -57,16 +88,22 @@ I wanted to work directly with **DirectX 11**, the core API behind game engines,
 
 | 지표 | 이전 | 이후 | 변화 또는 결과 |
 |---|---:|---:|---:|
-| `GraphicsClass` (`.cpp + .h`) | 1,879 LOC | 1,089 LOC | **-790 LOC, -42.0%** |
-| `graphicsclass.cpp` 단일 파일 | 1,694 LOC | 968 LOC | **-726 LOC, -42.9%** |
-| 프로젝트 소유 C++ (`Graphics/**/*.cpp,h`, Assimp 제외) | 79파일 / 19,569 LOC | 93파일 / 16,253 LOC | 파일 +14, LOC **-3,316 (-16.9%)** |
+| `GraphicsClass` (`.cpp + .h`) | 1,879 LOC | 1,141 LOC | **-738 LOC, -39.3%**; 오류 원인 보존 코드 포함 |
+| `graphicsclass.cpp` 단일 파일 | 1,694 LOC | 1,017 LOC | **-677 LOC, -40.0%** |
+| 프로젝트 소유 C++ (`Graphics/**/*.cpp,h`, Assimp 제외) | 79파일 / 19,569 LOC | 99파일 / 17,080 LOC | 파일 +20, LOC **-2,489 (-12.7%)** |
 | `SystemClass` | 2파일 / 431 LOC | 제거 | 실행·창 책임을 엔진 계층으로 이동 |
-| 명시적 엔진 계층 | 없음 | 19파일 / 2,228 LOC | 13개 논리 모듈로 책임 분할 |
+| `Engine/` 책임 트리 | 없음 | 93파일 / 15,836 LOC | Core/Runtime을 포함한 역할별 물리 구조로 정렬 |
+| `Graphics/` 루트 C++ 파일 | 74파일 | 4파일 | **-70파일, -94.6%**; 진입점·PCH만 유지 |
+| 텍스처 소유 자원 | 구체 타입/직접 `ComPtr` 14개 | 인터페이스 핸들 14개 | 샘플링 텍스처 8개는 `TexturePtr`, 렌더 텍스처 6개는 `RenderTexturePtr`로 통일 |
+| 텍스처 래퍼 구현 | 4파일 / 322 LOC | 3파일 / 333 LOC | 공통 인터페이스 2개와 실패 안전 생성 팩토리 추가, 레거시 클래스 2개 제거 |
 | 수동 ownership site* | 214곳 | 0곳 | `new` 67 + `delete` 42 + `Release()` 105 제거 |
-| 소프트 섀도우 파이프라인 | `GraphicsClass` 내부 상태 공유 | 6개 패스 전용 객체 | `SoftShadowPipeline.cpp` 538 LOC로 분리 |
+| 소프트 섀도우 파이프라인 | `GraphicsClass` 내부 상태 공유 | 6개 패스 전용 객체 | `SoftShadowPipeline.cpp` 544 LOC로 분리 |
 | 레거시/의존성 통합 파일 | 98파일 / 1,218,891 bytes | 제거 | Assimp 93 + ImGui 3 + SystemClass 2 제거 |
 | 동물 모델 데이터 | clean clone에서 OBJ 4개 누락 | 4개 / 17,405,008 bytes | **230,504 triangles** 복구 및 모든 출력 구성에 복사 |
-| 프로젝트/필터 명시 항목 | 불일치 가능 상태 | 119 / 119 | 누락 0, 초과 0, 실제 파일 누락 0 |
+| 프로젝트/필터 명시 항목 | 불일치 가능 상태 | 122 / 122 | 누락 0, 초과 0, 실제 파일 누락 0 |
+| 솔루션 빌드 타깃 | 실행 파일 1개 | 4개 | Core/Runtime 정적 라이브러리, 게임, headless 테스트로 분리 |
+| 런타임 오류 팝업 (`GraphicsClass`) | 15곳 | 0곳 | typed `Result<T>`로 Application/Launcher까지 원인 전달 |
+| Headless 결정론 검증 | 없음 | 36 / 36 성공 | 4개 구성 × 9개 검사, 각 10,000 tick hash 일치 |
 | 빌드 행렬 | 구성별 결과 불명확 | 4 / 4 성공 | Debug/Release × x86/x64, warning 0, error 0 |
 | 런타임 스모크 테스트 | 기준 없음 | 1 / 1 성공 | 창·메인 루프 응답, `WM_CLOSE`, ExitCode 0 |
 
@@ -74,12 +111,12 @@ I wanted to work directly with **DirectX 11**, the core API behind game engines,
 
 ### 검증 범위와 해석
 
-- 네 구성 모두 C++17, `/W4`, `/WX` 전체 Rebuild를 수행했으며 18개 HLSL 항목도 함께 컴파일했습니다.
+- 네 구성 모두 C++17, `/W4`, `/WX` 빌드와 headless 결정론 검증을 수행했으며 18개 HLSL 항목도 함께 컴파일했습니다.
 - 네 출력 디렉터리에 복구한 OBJ 4개가 모두 복사되고, 필수 모델 누락 시 큐브 fallback 없이 초기화가 실패하는 것을 확인했습니다.
-- `Debug | x64`에서 실제 창 생성, 모델 초기화, 메인 루프 응답과 정상 종료를 확인했습니다.
+- `Debug | x64`에서 실제 창 생성, 모델 초기화, fixed-step 메인 루프 응답과 정상 종료를 확인했습니다. 측정 실행에서는 8,690 render frame 동안 126 fixed tick이 독립적으로 수행됐습니다.
 - 이번 정량 결과는 구조·소유권·빌드 재현성에 대한 측정입니다. 동일한 장면·카메라·GPU 조건의 전후 성능 벤치마크는 수행하지 않았으므로 FPS 향상을 주장하지 않습니다.
 
-**English summary:** The legacy demo was split into explicit application, platform, game, input, scene, and rendering boundaries. Manual ownership sites were reduced from 214 to zero in project-owned code, `GraphicsClass` shrank by 42.0%, four build configurations pass `/W4 /WX`, and the four legacy animal meshes were restored instead of being hidden behind placeholder cubes.
+**English summary:** The legacy demo was split into explicit application, platform, game, input, scene, and rendering boundaries. Core and Runtime are independent static-library targets, the game now runs on a deterministic 60 Hz fixed-step scheduler, and a headless replay produces the same 64-bit world hash across render-frame partitions. Manual ownership sites were reduced from 214 to zero in project-owned code, texture ownership uses shared contracts, and all four build configurations pass `/W4 /WX` plus runtime verification.
 
 ---
 
@@ -91,12 +128,17 @@ I wanted to work directly with **DirectX 11**, the core API behind game engines,
 WinMain
 └─ Engine::Application
    ├─ Engine::Win32Window
+   ├─ Engine::Runtime::FixedStepScheduler
    ├─ std::unique_ptr<Engine::IGame> → GraphicsClass (PortfolioGame)
-   └─ TimerClass / FpsClass / CpuClass → Engine::FrameContext
+   └─ TimerClass / FpsClass / CpuClass
+
+FixedFrameContext → IGame::FixedUpdate (60 Hz simulation)
+RenderFrameContext → IGame::Render (presentation + interpolation)
 
 InputClass → InputSnapshot → FirstPersonCameraController → CameraClass
 SceneDefinition → GameObject → Transform + ModelClass
 GraphicsClass → SoftShadowPipeline → 6 render passes
+ITexture ← DdsTexture / IRenderTexture ← RenderTargetTexture
 ```
 
 | 구성 요소 | 책임 |
@@ -110,6 +152,25 @@ GraphicsClass → SoftShadowPipeline → 6 render passes
 | `SceneDefinition` | 모델, 지형, 불, UI, 폴리지, 오디오, 섀도 맵 설정을 데이터로 정의합니다. |
 | `GameObject` / `Transform` | 모델 소유권·활성 상태와 위치·회전·스케일·월드 행렬 계산을 캡슐화합니다. |
 | `SoftShadowPipeline` | 섀도 맵, 흑백 변환, 다운샘플, 가로·세로 블러, 업샘플의 여섯 패스와 관련 렌더 자원을 캡슐화합니다. |
+| `ITexture` / `IRenderTexture` | 모든 텍스처의 SRV 접근을 통일하고, 렌더 타깃 전용 동작은 별도 인터페이스로 분리합니다. 소비자는 DDS 로딩이나 RTV/DSV 구현을 알 필요가 없습니다. |
+
+### 통합 텍스처 생성 API
+
+인터페이스는 직접 값으로 생성할 수 없고 raw `new`는 소유권을 모호하게 하므로, 요청한 간단한 선언 방식은 소유권까지 표현하는 스마트 포인터 팩토리로 제공합니다.
+
+```cpp
+using namespace Engine::Rendering;
+
+TexturePtr albedo = MakeTexture<DdsTexture>(
+    device,
+    L"data/stone01.dds");
+
+RenderTexturePtr shadowMap = MakeTexture<RenderTargetTexture>(
+    device,
+    RenderTextureDescriptor{ 2048, 2048, 1000.0f, 0.1f });
+```
+
+두 변수 모두 `GetShaderResourceView()`로 셰이더에 전달할 수 있습니다. `shadowMap`만 `SetRenderTarget()`, `ClearRenderTarget()`, 투영·직교 행렬 접근을 추가로 제공하므로 일반 텍스처에 불필요한 렌더 타깃 책임을 강제하지 않습니다. 생성에 실패하면 빈 포인터가 반환되고 이미 만들어진 Direct3D 자원은 RAII로 정리됩니다.
 
 ### COM 자원 수명 / COM resource lifetime
 
@@ -129,21 +190,25 @@ Graphics.sln
 Graphics/
 ├─ Engine/
 │  ├─ Application.{h,cpp}       # 애플리케이션 수명주기와 메인 루프
-│  ├─ Win32Window.{h,cpp}       # Win32 창과 메시지 라우팅
-│  ├─ NativeWindow.h            # Windows.h 없는 네이티브 창 핸들 경계
 │  ├─ IGame.h / FrameContext.h  # 게임 경계와 프레임 데이터
-│  ├─ Core/                     # ScopedResource, ScopeExit
-│  ├─ Input/                    # InputSnapshot, FirstPersonCameraController
-│  ├─ Rendering/                # SoftShadowPipeline
-│  └─ Scene/                    # SceneDefinition, GameObject, Transform
+│  ├─ Audio/                    # DirectSound 자원과 재생
+│  ├─ Core/                     # 범용 RAII와 scope guard
+│  ├─ Diagnostics/              # 타이머, FPS, CPU 계측
+│  ├─ Input/                    # DirectInput, 스냅샷, 카메라 컨트롤러
+│  ├─ Platform/                 # Win32 창, 메시지, 네이티브 핸들 경계
+│  ├─ Scene/                    # 카메라, 조명, 충돌, 오브젝트와 씬 정의
+│  └─ Rendering/
+│     ├─ Device/                # Direct3D 장치와 공통 헬퍼
+│     ├─ Geometry/              # 모델, 지형, 폴리지, 스카이돔, 화면 쿼드
+│     ├─ Pipelines/             # SoftShadowPipeline
+│     ├─ Shaders/               # 셰이더 및 상수 버퍼 래퍼
+│     ├─ Textures/              # ITexture, DDS, 렌더 타깃 텍스처
+│     └─ UI/                    # 비트맵, 폰트, 텍스트 HUD
+├─ Game/
+│  └─ graphicsclass.{h,cpp}     # IGame을 구현하는 포트폴리오 데모
 ├─ data/                        # HLSL, 텍스처, 높이 맵, 폰트, 오디오 자산
 ├─ main.cpp                     # Application과 PortfolioGame 조립
-├─ graphicsclass.{h,cpp}        # IGame을 구현하는 포트폴리오 데모
-├─ d3dclass.{h,cpp}             # Direct3D 11 장치와 렌더 상태
-├─ inputclass.{h,cpp}           # DirectInput 및 InputSnapshot
-├─ SoundClass.{h,cpp}           # DirectSound
-├─ modelclass.{h,cpp}           # 내장 OBJ 로더와 GPU 메시 리소스
-└─ *ShaderClass.{h,cpp}         # 셰이더 및 상수 버퍼 래퍼
+└─ stdafx.{h,cpp} / targetver.h # 사전 컴파일 헤더와 Windows SDK 대상
 ```
 
 ---
@@ -182,10 +247,11 @@ Graphics/
 3. 프로젝트에 기록된 플랫폼 도구 집합을 설치하지 않은 경우, Visual Studio 안내에 따라 설치된 MSVC 도구 집합으로 재대상 지정합니다. Visual Studio 2022에서는 일반적으로 `v143`을 사용할 수 있으며, 언어 표준은 C++17을 유지합니다.
 4. **Build → Build Solution**을 실행합니다. `Graphics/data`의 런타임 자산은 출력 디렉터리로 `PreserveNewest` 복사되도록 설정되어 있습니다.
 5. 빌드가 완료된 구성의 `PortfolioEngine`을 Visual Studio에서 실행합니다.
+6. 저장소 루트에서 `.\scripts\verify.ps1`을 실행하면 x64 Debug/Release 빌드와 10,000-tick headless replay를 자동 검증합니다. `-AllArchitectures`를 추가하면 x86까지 포함합니다.
 
-> **검증 결과:** 네 구성 모두 HLSL 포함 전체 `Rebuild`에 성공했으며 경고는 오류로 처리됩니다. `Debug | x64` 실행 스모크 테스트도 통과했습니다. 환경별 도구 집합이나 Windows SDK 차이로 재대상 지정은 필요할 수 있습니다.
+> **검증 결과:** 네 구성 모두 HLSL 포함 빌드와 9개 런타임 검사를 통과했으며 경고는 오류로 처리됩니다. `Debug | x64` 실제 창 실행과 정상 종료 스모크 테스트도 통과했습니다. 환경별 도구 집합이나 Windows SDK 차이로 재대상 지정은 필요할 수 있습니다.
 
-**English:** Open `Graphics.sln` with Visual Studio 2022 or newer, install the Desktop C++ workload and a Windows SDK, and build one of the four Debug/Release × x86/x64 configurations with C++17. All four configurations pass a full rebuild under `/W4 /WX`; Debug x64 also passes a window/main-loop/graceful-close smoke test.
+**English:** Open `Graphics.sln` with Visual Studio 2022 or newer, install the Desktop C++ workload and a Windows SDK, and build one of the four Debug/Release × x86/x64 configurations with C++17. Run `.\scripts\verify.ps1 -AllArchitectures` to build all configurations and execute the deterministic headless replay checks.
 
 ---
 

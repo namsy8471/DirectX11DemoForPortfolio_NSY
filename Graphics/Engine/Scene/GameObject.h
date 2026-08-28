@@ -3,8 +3,8 @@
 #include <d3d11.h>
 #include <memory>
 
-#include "Transform.h"
-#include "../../CollisionHelpers.h"
+#include "Engine/Scene/Transform.h"
+#include "Engine/Scene/CollisionHelpers.h"
 
 class ModelClass;
 

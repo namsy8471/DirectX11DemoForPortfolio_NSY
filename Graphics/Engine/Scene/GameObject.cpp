@@ -1,6 +1,6 @@
-#include "GameObject.h"
+#include "Engine/Scene/GameObject.h"
 
-#include "../../modelclass.h"
+#include "Engine/Rendering/Geometry/modelclass.h"
 
 #include <utility>
 

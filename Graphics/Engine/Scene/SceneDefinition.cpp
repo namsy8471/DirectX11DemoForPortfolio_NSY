@@ -1,4 +1,4 @@
-#include "SceneDefinition.h"
+#include "Engine/Scene/SceneDefinition.h"
 
 #include <type_traits>
 #include <utility>

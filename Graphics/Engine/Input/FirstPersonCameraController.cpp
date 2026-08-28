@@ -1,7 +1,7 @@
-#include "FirstPersonCameraController.h"
-#include "InputSnapshot.h"
+#include "Engine/Input/FirstPersonCameraController.h"
+#include "Engine/Input/InputSnapshot.h"
 
-#include "../../cameraclass.h"
+#include "Engine/Scene/cameraclass.h"
 
 #include <algorithm>
 
